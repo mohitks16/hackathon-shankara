@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import Storyverse from "./Storyverse";
 import BrainBoard from "./BrainBoard";
+import AppliedKnowledge from "./AppliedKnowledge";
 
 export default function Learn() {
     const heroRef = useRef();
@@ -49,6 +50,7 @@ export default function Learn() {
             icon: <FaFlask />,
             title: "Applied Knowledge",
             desc: "Explore how Physics, Chemistry, Maths & Biology work beyond the textbook.",
+            action: () => setActiveApp("applied"),
         },
         {
             icon: <FaBrain />,
@@ -91,6 +93,10 @@ export default function Learn() {
         );
     }
 
+    if (activeApp === "applied") {
+        return <AppliedKnowledge onBack={() => setActiveApp(null)} />;
+    }
+
     const cards = showPastLearnings ? pastLearningCards : mainCards;
 
     return (
@@ -125,8 +131,8 @@ export default function Learn() {
                 {/* CARD GRID */}
                 <div
                     className={`grid gap-8 ${showPastLearnings
-                            ? "md:grid-cols-2 max-w-3xl mx-auto"
-                            : "md:grid-cols-2 lg:grid-cols-4"
+                        ? "md:grid-cols-2 max-w-3xl mx-auto"
+                        : "md:grid-cols-2 lg:grid-cols-4"
                         }`}
                 >
                     {cards.map((card, i) => (

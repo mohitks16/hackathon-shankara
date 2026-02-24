@@ -63,8 +63,8 @@ function SetupStage({ onStart, onBack }) {
                             whileHover={{ scale: 1.03, boxShadow: "0 0 22px rgba(34,211,238,0.3)" }}
                             onClick={() => setPurpose(p.id)}
                             className={`cursor-pointer rounded-2xl p-5 border transition-all text-center ${purpose === p.id
-                                    ? "bg-white/15 border-cyan-400"
-                                    : "bg-white/5 border-white/10"
+                                ? "bg-white/15 border-cyan-400"
+                                : "bg-white/5 border-white/10"
                                 }`}
                         >
                             <div className="text-3xl mb-2">{p.emoji}</div>
@@ -85,8 +85,8 @@ function SetupStage({ onStart, onBack }) {
                             whileHover={{ scale: 1.03, boxShadow: "0 0 22px rgba(34,211,238,0.3)" }}
                             onClick={() => setMode(m.id)}
                             className={`cursor-pointer rounded-2xl p-5 border transition-all text-center ${mode === m.id
-                                    ? "bg-white/15 border-cyan-400"
-                                    : "bg-white/5 border-white/10"
+                                ? "bg-white/15 border-cyan-400"
+                                : "bg-white/5 border-white/10"
                                 }`}
                         >
                             <div className="text-3xl mb-2">{m.emoji}</div>
@@ -136,113 +136,132 @@ function LoadingScreen({ message }) {
 // ─────────────────────────────────────────────
 // MIND MAP NODE (recursive)
 // ─────────────────────────────────────────────
-function MindMapNode({ node, depth = 0, index = 0 }) {
-    const [open, setOpen] = useState(depth < 1); // root children open by default
+function MindMapNode({ node, depth = 0, index = 0, isLast = false }) {
+    const [open, setOpen] = useState(depth < 2); // default open up to level 2
     const [cardOpen, setCardOpen] = useState(false);
 
     const colors = [
-        "border-cyan-400 text-cyan-400",
-        "border-blue-400 text-blue-400",
-        "border-purple-400 text-purple-400",
-        "border-pink-400 text-pink-400",
-        "border-amber-400 text-amber-400",
+        "border-cyan-400 text-cyan-400 bg-cyan-500/10",
+        "border-blue-400 text-blue-400 bg-blue-500/10",
+        "border-purple-400 text-purple-400 bg-purple-500/10",
+        "border-pink-400 text-pink-400 bg-pink-500/10",
+        "border-amber-400 text-amber-400 bg-amber-500/10",
     ];
     const color = colors[depth % colors.length];
-    const glows = [
-        "rgba(34,211,238,0.3)",
-        "rgba(96,165,250,0.3)",
-        "rgba(168,85,247,0.3)",
-        "rgba(236,72,153,0.3)",
-        "rgba(251,191,36,0.3)",
-    ];
-    const glow = glows[depth % glows.length];
 
     const hasChildren = node.children && node.children.length > 0;
-    const hasDetails = node.summary || node.formula;
+    const hasDetails = node.summary || node.formula || (node.keyPoints && node.keyPoints.length > 0) || node.conceptFlow;
 
     return (
-        <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.07, duration: 0.4 }}
-            className={`ml-${Math.min(depth * 6, 24)}`}
-            style={{ marginLeft: depth * 24 }}
-        >
-            {/* Connector line */}
-            {depth > 0 && (
-                <div className="flex items-stretch">
-                    <div className="mr-3 flex flex-col items-center">
-                        <div className="w-px flex-1 bg-white/10" />
-                        <div className="w-3 h-px bg-white/20 mb-2" />
-                    </div>
+        <div className="relative pl-8 pb-3">
+            {/* Vertical connector line from parent */}
+            <div
+                className="absolute left-0 top-0 w-px bg-white/20"
+                style={{ height: isLast ? '24px' : '100%' }}
+            />
+            {/* Horizontal twig to this node */}
+            <div className="absolute left-0 top-[24px] w-8 h-px bg-white/20" />
+
+            <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.3 }}
+                className="relative top-0"
+            >
+                {/* Node Pill */}
+                <div className="flex flex-col items-start pt-[6px]">
+                    <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className={`inline-flex items-center gap-3 px-5 py-3 rounded-2xl border backdrop-blur-md cursor-pointer select-none transition-all shadow-lg ${color}`}
+                        onClick={() => setCardOpen((v) => !v)}
+                    >
+                        <span className="font-bold text-sm md:text-base">{node.title}</span>
+                        {hasDetails && (
+                            <span className="text-xs opacity-70 bg-white/10 p-1.5 rounded-full">
+                                {cardOpen ? <FaChevronUp /> : <FaChevronDown />}
+                            </span>
+                        )}
+                        {hasChildren && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+                                className="ml-2 text-white/50 hover:text-white transition"
+                                title={open ? "Collapse" : "Expand"}
+                            >
+                                <FaLayerGroup />
+                            </button>
+                        )}
+                    </motion.div>
+
+                    {/* Detail Dropdown Card */}
+                    <AnimatePresence>
+                        {cardOpen && hasDetails && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0, y: -10 }}
+                                animate={{ opacity: 1, height: "auto", y: 0 }}
+                                exit={{ opacity: 0, height: 0, y: -10 }}
+                                transition={{ duration: 0.3 }}
+                                className="mt-2 ml-4 overflow-hidden z-10"
+                            >
+                                <div className="bg-[#1f2937]/90 border border-gray-600 rounded-xl p-5 max-w-lg shadow-2xl backdrop-blur-xl">
+                                    {node.conceptFlow && (
+                                        <div className="mb-3 pb-3 border-b border-gray-700/50">
+                                            <p className="text-cyan-300 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mb-1">
+                                                <FaArrowRight className="text-[10px]" /> Concept Flow
+                                            </p>
+                                            <p className="text-gray-300 text-sm leading-relaxed italic">{node.conceptFlow}</p>
+                                        </div>
+                                    )}
+
+                                    {node.summary && (
+                                        <p className="text-gray-200 text-sm leading-relaxed mb-4">{node.summary}</p>
+                                    )}
+
+                                    {node.keyPoints && node.keyPoints.length > 0 && (
+                                        <div className="mb-4 space-y-2">
+                                            {node.keyPoints.map((pt, i) => (
+                                                <div key={i} className="flex items-start gap-2">
+                                                    <FaCheck className="text-emerald-400 mt-1 shrink-0 text-xs" />
+                                                    <span className="text-gray-300 text-sm">{pt}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {node.formula && (
+                                        <div className="flex items-center gap-3 bg-cyan-500/10 border border-cyan-400/20 rounded-lg px-4 py-3 mt-2">
+                                            <FaFlask className="text-cyan-400 shrink-0" />
+                                            <code className="text-cyan-300 text-sm font-mono tracking-wide">{node.formula}</code>
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-            )}
 
-            <div className="mb-3">
-                {/* Node pill */}
-                <motion.div
-                    whileHover={{ boxShadow: `0 0 18px ${glow}` }}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border bg-white/5 backdrop-blur-md cursor-pointer select-none ${color} transition-all`}
-                    onClick={() => setCardOpen((v) => !v)}
-                >
-                    <span className="font-semibold text-sm">{node.title}</span>
-                    {hasDetails && (
-                        <span className="text-xs opacity-60">
-                            {cardOpen ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
-                        </span>
-                    )}
-                    {hasChildren && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-                            className="ml-1 opacity-50 hover:opacity-100 transition"
-                        >
-                            {open ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
-                        </button>
-                    )}
-                </motion.div>
-
-                {/* Detail dropdown card */}
+                {/* Children */}
                 <AnimatePresence>
-                    {cardOpen && hasDetails && (
+                    {open && hasChildren && (
                         <motion.div
-                            initial={{ opacity: 0, height: 0, y: -4 }}
-                            animate={{ opacity: 1, height: "auto", y: 0 }}
-                            exit={{ opacity: 0, height: 0, y: -4 }}
-                            transition={{ duration: 0.25 }}
-                            className="mt-2 ml-2 overflow-hidden"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="mt-1"
                         >
-                            <div className={`bg-white/5 border border-white/10 rounded-xl p-4 max-w-sm`}>
-                                {node.summary && (
-                                    <p className="text-gray-300 text-sm leading-relaxed mb-2">{node.summary}</p>
-                                )}
-                                {node.formula && (
-                                    <div className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-400/20 rounded-lg px-3 py-2">
-                                        <FaFlask className="text-cyan-400 text-xs shrink-0" />
-                                        <code className="text-cyan-300 text-xs font-mono">{node.formula}</code>
-                                    </div>
-                                )}
-                            </div>
+                            {node.children.map((child, i) => (
+                                <MindMapNode
+                                    key={i}
+                                    node={child}
+                                    depth={depth + 1}
+                                    index={i}
+                                    isLast={i === node.children.length - 1}
+                                />
+                            ))}
                         </motion.div>
                     )}
                 </AnimatePresence>
-            </div>
-
-            {/* Children */}
-            <AnimatePresence>
-                {open && hasChildren && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="border-l border-white/10 pl-4"
-                    >
-                        {node.children.map((child, i) => (
-                            <MindMapNode key={i} node={child} depth={depth + 1} index={i} />
-                        ))}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </motion.div>
+            </motion.div>
+        </div>
     );
 }
 
@@ -251,36 +270,47 @@ function MindMapNode({ node, depth = 0, index = 0 }) {
 // ─────────────────────────────────────────────
 function MindMapView({ concept, data, onDone }) {
     return (
-        <div className="w-full max-w-4xl mx-auto">
+        <div className="w-full max-w-5xl mx-auto">
             <div className="mb-6 flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text">
-                        {concept} — Mind Map
+                    <h2 className="text-3xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text">
+                        {concept} — Concept Tree
                     </h2>
-                    <p className="text-gray-500 text-sm mt-1">Click any node to expand its definition. Click ↕ to show/hide branches.</p>
+                    <p className="text-gray-500 text-sm mt-2">
+                        Click a node card to view deeper insights. Click <FaLayerGroup className="inline text-white/50 mx-1" /> to toggle branches.
+                    </p>
                 </div>
             </div>
 
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 mb-6 overflow-auto max-h-[65vh]">
-                {/* Root node */}
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-lg">
+            <div className="bg-[#0f172a]/50 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 mb-6 overflow-auto max-h-[70vh] shadow-2xl overflow-x-auto">
+                {/* Root node without the branch lines since it's the start */}
+                <div className="relative inline-block mb-1">
+                    <div className="px-6 py-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 font-bold text-lg shadow-[0_0_30px_rgba(6,182,212,0.3)] border border-cyan-400/50">
                         {data.title}
                     </div>
                 </div>
 
-                {data.children?.map((child, i) => (
-                    <MindMapNode key={i} node={child} depth={1} index={i} />
-                ))}
+                {/* Wrapper for the rest of the tree that aligns with the root node's center */}
+                <div className="ml-8 relative">
+                    {data.children?.map((child, i) => (
+                        <MindMapNode
+                            key={i}
+                            node={child}
+                            depth={1}
+                            index={i}
+                            isLast={i === data.children.length - 1}
+                        />
+                    ))}
+                </div>
             </div>
 
             <motion.button
-                whileHover={{ scale: 1.03, boxShadow: "0 0 20px rgba(34,211,238,0.4)" }}
-                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(34,211,238,0.4)" }}
+                whileTap={{ scale: 0.98 }}
                 onClick={onDone}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-semibold"
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-lg"
             >
-                I've Reviewed This ✓
+                I've Mastered This Map ✓
             </motion.button>
         </div>
     );

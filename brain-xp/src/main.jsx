@@ -6,6 +6,7 @@ import App from './App.jsx'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import QuizApp from './QuizApp.jsx'
 import Learn from './LearningArena/Learn.jsx'
+import GrowthBlueprint from './GrowthBlueprint/GrowthBlueprint.jsx'
 
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
@@ -13,6 +14,7 @@ createRoot(document.getElementById('root')).render(
       <Route path='/' element={<App />} />
       <Route path='/QuizApp' element={<QuizApp />} />
       <Route path='/Learn' element={<Learn />} />
+      <Route path='/Growth' element={<GrowthBlueprint />} />
     </Routes>
   </BrowserRouter>
 )
