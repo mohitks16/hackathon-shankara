@@ -4,7 +4,7 @@ import gsap from "gsap";
 import {
     FaBrain, FaLayerGroup, FaChevronDown, FaChevronUp,
     FaArrowLeft, FaArrowRight, FaTrophy, FaCheck,
-    FaLightbulb, FaFlask, FaKey,
+    FaLightbulb, FaFlask, FaKey, FaSave,
 } from "react-icons/fa";
 import axios from "axios";
 
@@ -435,8 +435,17 @@ function FlashCardView({ concept, cards, onDone }) {
 // ─────────────────────────────────────────────
 // COMPLETE SCREEN
 // ─────────────────────────────────────────────
-function CompleteStage({ concept, mode, onBack, onChallenge }) {
+function CompleteStage({ concept, mode, onBack, onChallenge, onSave }) {
     const modeLabel = mode === "mindmap" ? "Mind Map" : "Flash Cards";
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try { await onSave(); setSaved(true); }
+        catch (e) { console.error("Save failed:", e); }
+        finally { setSaving(false); }
+    };
 
     return (
         <div className="w-full max-w-lg mx-auto text-center">
@@ -475,6 +484,20 @@ function CompleteStage({ concept, mode, onBack, onChallenge }) {
             </div>
 
             <div className="flex flex-col gap-4">
+                {/* Save button */}
+                <motion.button
+                    whileHover={{ scale: saved ? 1 : 1.03, boxShadow: saved ? "none" : "0 0 20px rgba(139,92,246,0.4)" }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleSave}
+                    disabled={saving || saved}
+                    className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition ${saved ? "bg-emerald-600/30 border border-emerald-400/50 text-emerald-400 cursor-default"
+                            : "bg-gradient-to-r from-violet-500 to-indigo-600 hover:opacity-90"
+                        }`}
+                >
+                    <FaSave />
+                    {saved ? "✓ Saved to Past Learnings!" : saving ? "Saving..." : "💾 Save to Past Learnings"}
+                </motion.button>
+
                 {/* Optional Challenge CTA */}
                 <motion.button
                     whileHover={{ scale: 1.03, boxShadow: "0 0 24px rgba(251,191,36,0.4)" }}
@@ -505,13 +528,15 @@ export default function BrainBoard({ onBack, onNavigateToChallenge }) {
     const [stage, setStage] = useState("setup");
     const [concept, setConcept] = useState("");
     const [mode, setMode] = useState("");
+    const [purpose, setPurpose] = useState("");
     const [data, setData] = useState(null);
     const [loadingMsg, setLoadingMsg] = useState("");
     const [error, setError] = useState(null);
 
-    const handleStart = async (conceptVal, purpose, modeVal) => {
+    const handleStart = async (conceptVal, purposeVal, modeVal) => {
         setConcept(conceptVal);
         setMode(modeVal);
+        setPurpose(purposeVal);
         setStage("loading");
         setLoadingMsg(
             modeVal === "mindmap" ? "Building your mind map..." : "Creating flash cards..."
@@ -535,6 +560,15 @@ export default function BrainBoard({ onBack, onNavigateToChallenge }) {
 
     const handleChallenge = () => {
         if (onNavigateToChallenge) onNavigateToChallenge(concept);
+    };
+
+    const handleSaveBrainBoard = async () => {
+        await axios.post("http://localhost:5000/api/brainboard-history/save", {
+            concept,
+            purpose,
+            type: mode === "mindmap" ? "mindmap" : "flashcard",
+            data,
+        });
     };
 
     return (
@@ -579,6 +613,7 @@ export default function BrainBoard({ onBack, onNavigateToChallenge }) {
                                 mode={mode}
                                 onBack={onBack}
                                 onChallenge={handleChallenge}
+                                onSave={handleSaveBrainBoard}
                             />
                         </motion.div>
                     )}

@@ -4,9 +4,10 @@ import gsap from "gsap";
 import {
     FaBookOpen, FaCheckCircle, FaCircle, FaYoutube,
     FaGlobe, FaTrophy, FaArrowLeft, FaArrowRight,
-    FaLightbulb, FaBrain, FaExclamationTriangle,
+    FaLightbulb, FaBrain, FaExclamationTriangle, FaSave,
 } from "react-icons/fa";
 import axios from "axios";
+import { addXpToServer, addCoinsToServer } from "../statsUtils";
 
 const BASE = "http://localhost:5000/api/storyverse";
 
@@ -113,8 +114,8 @@ function SetupStage({ onStart, onBack }) {
                         whileHover={{ scale: 1.04, boxShadow: `0 0 28px ${path.glow}` }}
                         onClick={() => setSelectedPath(path.id)}
                         className={`cursor-pointer rounded-3xl p-6 border transition-all ${selectedPath === path.id
-                                ? "bg-white/15 border-cyan-400"
-                                : "bg-white/5 border-white/10"
+                            ? "bg-white/15 border-cyan-400"
+                            : "bg-white/5 border-white/10"
                             }`}
                     >
                         <div className={`text-2xl font-extrabold bg-gradient-to-r ${path.color} text-transparent bg-clip-text mb-2`}>
@@ -265,10 +266,10 @@ function StoryStage({ topic, subtopics, currentSubtopicIdx, storyData, onProceed
                             <div
                                 key={i}
                                 className={`flex items-center gap-2 p-2 rounded-lg text-sm transition ${i === currentSubtopicIdx
-                                        ? "bg-cyan-400/10 text-cyan-400 font-medium"
-                                        : i < currentSubtopicIdx
-                                            ? "text-emerald-400"
-                                            : "text-gray-500"
+                                    ? "bg-cyan-400/10 text-cyan-400 font-medium"
+                                    : i < currentSubtopicIdx
+                                        ? "text-emerald-400"
+                                        : "text-gray-500"
                                     }`}
                             >
                                 {i < currentSubtopicIdx ? (
@@ -465,8 +466,22 @@ function SolutionStage({ subtopic, questions, answers, onNext, isLast }) {
 // ──────────────────────────────────────────────────────────
 // COMPLETE STAGE
 // ──────────────────────────────────────────────────────────
-function CompleteStage({ subtopics, weakSubtopics, path, onBack }) {
+function CompleteStage({ subtopics, weakSubtopics, path, onBack, onSave }) {
     const config = PATHS.find((p) => p.id === path);
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await onSave();
+            setSaved(true);
+        } catch (e) {
+            console.error("Save failed:", e);
+        } finally {
+            setSaving(false);
+        }
+    };
 
     return (
         <div className="w-full max-w-2xl mx-auto text-center">
@@ -501,8 +516,8 @@ function CompleteStage({ subtopics, weakSubtopics, path, onBack }) {
                         <span
                             key={i}
                             className={`px-3 py-1 rounded-lg text-xs ${weakSubtopics.includes(st)
-                                    ? "bg-red-500/20 text-red-300 border border-red-400/30"
-                                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
+                                ? "bg-red-500/20 text-red-300 border border-red-400/30"
+                                : "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30"
                                 }`}
                         >
                             {st}
@@ -533,14 +548,31 @@ function CompleteStage({ subtopics, weakSubtopics, path, onBack }) {
                 </motion.div>
             )}
 
-            <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={onBack}
-                className="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-pink-500 font-semibold"
-            >
-                Return to Learning Arena
-            </motion.button>
+            <div className="flex flex-col gap-3">
+                {/* Save button */}
+                <motion.button
+                    whileHover={{ scale: saved ? 1 : 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleSave}
+                    disabled={saving || saved}
+                    className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition ${saved
+                        ? "bg-emerald-600/30 border border-emerald-400/50 text-emerald-400 cursor-default"
+                        : "bg-gradient-to-r from-violet-500 to-indigo-600 hover:opacity-90"
+                        }`}
+                >
+                    <FaSave />
+                    {saved ? "✓ Saved to Past Learnings!" : saving ? "Saving..." : "💾 Save to Past Learnings"}
+                </motion.button>
+
+                <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={onBack}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-pink-500 font-semibold"
+                >
+                    Return to Learning Arena
+                </motion.button>
+            </div>
         </div>
     );
 }
@@ -630,7 +662,36 @@ export default function Storyverse({ onBack }) {
         }
     };
 
-    // Calculate weak subtopics (>3 wrong or skipped per subtopic)
+    const handleSaveStory = async () => {
+        const path = PATHS.find(p => p.id === pathId);
+        // Build subtopics list with answers
+        const subtopicData = allAnswers.map(({ subtopic, questions, answers }) => ({
+            title: subtopic,
+            content: "",
+            userAnswer: null,
+            isCorrect: !getWeakSubtopics().includes(subtopic),
+            solution: questions
+                .filter((q, i) => answers[i] !== q.answer)
+                .map(q => `${q.question} → ${q.answer}`)
+                .join(" | "),
+        }));
+        const wrongAnswers = allAnswers.flatMap(({ subtopic, questions, answers: ans }) =>
+            questions
+                .map((q, qi) => ({ q, qi }))
+                .filter(({ q, qi }) => ans[qi] !== q.answer)
+                .map(({ q, qi }) => ({ subtopic, userAnswer: ans[qi] ?? "Skipped", correctAnswer: q.answer }))
+        );
+        await axios.post("http://localhost:5000/api/story-history/save", {
+            topic,
+            difficulty: pathId,
+            subtopics: subtopicData,
+            wrongAnswers,
+            xpEarned: path?.xp || 0,
+        });
+        // Persist XP + coins to global stats
+        addXpToServer(path?.xp || 0, "storyverse");
+        addCoinsToServer(path?.coins || 0, "storyverse-complete");
+    };
     const getWeakSubtopics = () => {
         return allAnswers
             .filter(({ questions, answers }) => {
@@ -704,6 +765,7 @@ export default function Storyverse({ onBack }) {
                                 weakSubtopics={getWeakSubtopics()}
                                 path={pathId}
                                 onBack={onBack}
+                                onSave={handleSaveStory}
                             />
                         </motion.div>
                     )}

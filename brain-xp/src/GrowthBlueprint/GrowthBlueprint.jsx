@@ -13,12 +13,14 @@ import {
 } from "react-icons/fa";
 import CarrerCounsellor from "./CarrerCounsellor";
 import DestinyDesigner from "./DestinyDesigner";
-// import ExamMasterPlan from "./ExamMasterPlan"; // Placeholder for feature
+import ExamPlanner from "./ExamPlanner";
+import PastGrowth from "../PastGrowth";
 
 export default function GrowthBlueprint() {
     const heroRef = useRef();
     const navigate = useNavigate();
-    const [activeApp, setActiveApp] = useState(null); // "examMaster" | "careerNav" | "pastPlans" | "destiny" | "counsellor"
+    const [activeApp, setActiveApp] = useState(null);
+    const [destinyCareer, setDestinyCareer] = useState("");
 
     useEffect(() => {
         gsap.from(heroRef.current, {
@@ -79,34 +81,37 @@ export default function GrowthBlueprint() {
             icon: <FaScroll />,
             title: "Saved Exam Plans",
             desc: "Review your active and past exam schedules.",
+            action: () => setActiveApp("pastExamPlans"),
         },
         {
             icon: <FaHistory />,
             title: "Saved Career Roadmaps",
             desc: "Revisit your previous Destiny Designer roadmaps.",
+            action: () => setActiveApp("pastRoadmaps"),
         },
     ];
 
     // ── Active sub-apps ──
     if (activeApp === "destiny") {
-        return <DestinyDesigner onBack={() => setActiveApp("careerNav")} />;
+        return <DestinyDesigner onBack={() => setActiveApp("careerNav")} prefillCareer={destinyCareer} />;
     }
 
     if (activeApp === "counsellor") {
-        return <CarrerCounsellor onBack={() => setActiveApp("careerNav")} />;
+        return <CarrerCounsellor
+            onBack={() => setActiveApp("careerNav")}
+            onRedirectToDestiny={(careerTitle) => {
+                setDestinyCareer(careerTitle || "");
+                setActiveApp("destiny");
+            }}
+        />;
     }
 
     if (activeApp === "examMaster") {
-        return (
-            <div className="min-h-screen from-[#0f172a] via-[#111827] to-black bg-gradient-to-br flex items-center justify-center text-white">
-                <div className="text-center">
-                    <h2 className="text-3xl font-bold mb-4">Exam Master Plan coming soon...</h2>
-                    <button onClick={() => setActiveApp(null)} className="flex items-center gap-2 hover:text-cyan-400">
-                        <FaArrowLeft /> Back
-                    </button>
-                </div>
-            </div>
-        );
+        return <ExamPlanner onBack={() => setActiveApp(null)} />;
+    }
+
+    if (activeApp === "pastExamPlans" || activeApp === "pastRoadmaps") {
+        return <PastGrowth onBack={() => setActiveApp(null)} initialTab={activeApp === "pastRoadmaps" ? "roadmaps" : "plans"} />;
     }
 
     let cards = mainCards;
@@ -158,8 +163,8 @@ export default function GrowthBlueprint() {
                 {/* CARD GRID */}
                 <div
                     className={`grid gap-8 ${showBack
-                            ? "md:grid-cols-2 max-w-3xl mx-auto"
-                            : "md:grid-cols-1 lg:grid-cols-3 max-w-5xl mx-auto"
+                        ? "md:grid-cols-2 max-w-3xl mx-auto"
+                        : "md:grid-cols-1 lg:grid-cols-3 max-w-5xl mx-auto"
                         }`}
                 >
                     {cards.map((card, i) => (

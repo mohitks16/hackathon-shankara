@@ -3,7 +3,7 @@ import { AzureKeyCredential } from "@azure/core-auth";
 
 const token = process.env.GITHUB_TOKEN;
 const endpoint = "https://models.github.ai/inference";
-const model = "openai/gpt-4o";
+const model = "openai/gpt-4o-mini";
 
 const client = ModelClient(endpoint, new AzureKeyCredential(token));
 
@@ -11,35 +11,10 @@ export async function generateQuiz(req, res) {
   try {
     const { topic, numQuestions, difficulty } = req.body;
 
-    const prompt = `
-Generate ${numQuestions} ${difficulty} level MCQs from the topic: ${topic}.
-
-For EACH question, include ALL of these fields in your JSON:
-- question: the MCQ question text
-- options: array of 4 option strings ["A","B","C","D"]
-- answer: the exact correct option text (must match one of the options exactly)
-- subtopic: a specific subtopic/construct this question tests (e.g., "Photosynthesis", "React Hooks", "Quadratic Equations")
-- solution: a clear 2-4 sentence explanation of why the correct answer is right and how to approach this type of question
-- doYouKnow: 2-3 interesting facts, surprising information, or curiosity-inducing knowledge related to this question's concept (engaging "Did you know?" style content)
-- additionalKnowledge: extra context, real-world applications, or related concepts that deepen understanding
-- learnMoreLinks: array of 2-4 objects with { title: "Short link title", url: "https://..." } - use real, relevant Wikipedia, Khan Academy, MDN, or educational URLs when possible
-- imageSearchTerm: a short keyword phrase (2-4 words) for finding a related educational image (e.g., "photosynthesis diagram", "neural network visualization")
-
-Return ONLY valid JSON array, no markdown or code blocks:
-[
-{
-  "question": "",
-  "options": ["","","",""],
-  "answer": "",
-  "subtopic": "",
-  "solution": "",
-  "doYouKnow": "",
-  "additionalKnowledge": "",
-  "learnMoreLinks": [{"title":"","url":""}],
-  "imageSearchTerm": ""
-}
-]
-`;
+    const prompt = `Generate ${numQuestions} ${difficulty} level MCQs on: ${topic}.
+Return ONLY valid JSON array, no markdown:
+[{"question":"","options":["","","",""],"answer":"","subtopic":"","solution":"1-3 sentences","doYouKnow":"1 interesting fact"}]
+Rules: 4 options per question. answer must exactly match one option.`;
 
     const response = await client
       .path("/chat/completions")
@@ -51,6 +26,7 @@ Return ONLY valid JSON array, no markdown or code blocks:
           ],
           model: model,
           temperature: 0.7,
+          max_tokens: 2000,
         },
       });
 
@@ -73,9 +49,9 @@ Return ONLY valid JSON array, no markdown or code blocks:
       additionalKnowledge: q.additionalKnowledge || "",
       learnMoreLinks: Array.isArray(q.learnMoreLinks)
         ? q.learnMoreLinks.map((l) => ({
-            title: l.title || (typeof l === "string" ? l : "Learn more"),
-            url: l.url || (typeof l === "string" ? l : "#"),
-          }))
+          title: l.title || (typeof l === "string" ? l : "Learn more"),
+          url: l.url || (typeof l === "string" ? l : "#"),
+        }))
         : [],
       imageSearchTerm: q.imageSearchTerm || "",
     }));

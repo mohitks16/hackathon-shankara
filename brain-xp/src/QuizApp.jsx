@@ -1,14 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { FaTrophy, FaLightbulb, FaBook, FaExternalLinkAlt } from "react-icons/fa";
 import axios from "axios";
 import QuizHome from "./QuizHome";
 import PastQuizes from "./PastQuizes";
+import PastAssistedQuizzes from "./PastAssistedQuizzes";
+import PastChallenges from "./PastChallenges";
 import MasterMentors from "./MasterMentors";
 import MentorChat from "./MentorChat";
 import Challenge from "./Challenge";
 import Toaster from "./Toaster";
+import { addXpToServer, addCoinsToServer } from "./statsUtils";
 
 const difficultyLevels = [
   {
@@ -67,6 +70,8 @@ export default function QuizApp() {
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [mentorTotalXp, setMentorTotalXp] = useState(0);
   const [coins, setCoins] = useState(10);
+  const [quizSaving, setQuizSaving] = useState(false);
+  const [quizSaved, setQuizSaved] = useState(false);
 
   // GENERATE QUIZ
   const generateQuiz = async () => {
@@ -74,9 +79,7 @@ export default function QuizApp() {
 
     setLoading(true);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7706/ingest/e8ea0c0c-469e-4945-af3d-c8764052929b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'cdb53a' }, body: JSON.stringify({ sessionId: 'cdb53a', location: 'QuizApp.jsx:generateQuiz', message: 'generateQuiz called', data: { topic, selectedDifficulty }, hypothesisId: 'H3', timestamp: Date.now() }) }).catch(() => { });
-    // #endregion
+
 
     try {
       const res = await axios.post("http://localhost:5000/generate-quiz", {
@@ -101,18 +104,60 @@ export default function QuizApp() {
       setStreakPopup(false);
       setToaster({ show: false, message: "" });
       setStage("quiz");
-      // #region agent log
-      fetch('http://127.0.0.1:7706/ingest/e8ea0c0c-469e-4945-af3d-c8764052929b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'cdb53a' }, body: JSON.stringify({ sessionId: 'cdb53a', location: 'QuizApp.jsx:success', message: 'quiz fetched', data: { count: res?.data?.length }, hypothesisId: 'H3', timestamp: Date.now() }) }).catch(() => { });
-      // #endregion
+
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7706/ingest/e8ea0c0c-469e-4945-af3d-c8764052929b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'cdb53a' }, body: JSON.stringify({ sessionId: 'cdb53a', location: 'QuizApp.jsx:catch', message: 'axios error', data: { message: err?.message, status: err?.response?.status, code: err?.code }, hypothesisId: 'H3', timestamp: Date.now() }) }).catch(() => { });
-      // #endregion
+
       console.error("Error fetching quiz:", err);
       alert("Failed to generate quiz.");
     }
 
     setLoading(false);
+  };
+
+  // Save quiz to DB on demand
+  const calculateXP = () => {
+    return answers.reduce((total, ans, i) => {
+      if (ans === questions[i]?.answer) {
+        const diff = difficultyLevels.find(d => d.id === selectedDifficulty);
+        return total + (xpEarnedPerQuestion[i] ?? (typeof diff?.xp === "number" ? diff.xp : 0));
+      }
+      return total;
+    }, 0) + streakBonusEarned;
+  };
+
+  const handleSaveQuiz = async () => {
+    if (quizSaving || quizSaved) return;
+    setQuizSaving(true);
+    try {
+      const totalXP = calculateXP();
+      const questionsWithAnswers = questions.map((q, i) => ({
+        ...q,
+        userAnswer: answers[i] ?? null,
+        isCorrect: answers[i] === q.answer,
+      }));
+      const weakSubtopics = [...new Set(
+        questionsWithAnswers
+          .filter(q => !q.isCorrect)
+          .map(q => q.subtopic)
+          .filter(Boolean)
+      )];
+      await axios.post("http://localhost:5000/api/past-quiz/save", {
+        topic,
+        difficulty: selectedDifficulty,
+        questions: questionsWithAnswers,
+        score: questionsWithAnswers.filter(q => q.isCorrect).length,
+        totalXP,
+        weakSubtopics,
+      });
+      setQuizSaved(true);
+      // Persist XP to global stats
+      addXpToServer(totalXP, "quiz");
+      addCoinsToServer(1, "quiz-complete"); // 1 coin per quiz completion
+    } catch (err) {
+      console.error("Quiz save error:", err);
+    } finally {
+      setQuizSaving(false);
+    }
   };
 
   const getXPForQuestion = (qIndex) => {
@@ -214,26 +259,8 @@ export default function QuizApp() {
     setStage("result");
   };
 
-  const calculateXP = () => {
-    let totalXP = 0;
 
-    questions.slice(0, numQuestions).forEach((q, i) => {
-      if (answers[i] === q.answer) {
-        if (selectedDifficulty === "adaptive" && xpEarnedPerQuestion[i] != null) {
-          totalXP += xpEarnedPerQuestion[i];
-        } else if (selectedDifficulty === "adaptive") {
-          totalXP += [2, 4, 6, 8, 10][Math.floor(Math.random() * 5)];
-        } else {
-          const diff = difficultyLevels.find(
-            (d) => d.id === selectedDifficulty
-          );
-          totalXP += diff?.xp || 0;
-        }
-      }
-    });
 
-    return totalXP + streakBonusEarned;
-  };
 
   const getSubtopicsToFocusOn = () => {
     const wrongSubtopics = new Set();
@@ -339,9 +366,17 @@ export default function QuizApp() {
           {stage === "pastQuizzes" && (
             <PastQuizes
               onBack={() => setStage("home")}
-              onPastAssistedQuiz={() => alert("Past Assisted Quiz - coming soon")}
-              onPastChallenges={() => alert("Past Challenges - coming soon")}
+              onPastAssistedQuiz={() => setStage("pastAssisted")}
+              onPastChallenges={() => setStage("pastChallenges")}
             />
+          )}
+
+          {stage === "pastAssisted" && (
+            <PastAssistedQuizzes onBack={() => setStage("pastQuizzes")} />
+          )}
+
+          {stage === "pastChallenges" && (
+            <PastChallenges onBack={() => setStage("pastQuizzes")} />
           )}
 
           {stage === "challenge" && (
@@ -387,8 +422,8 @@ export default function QuizApp() {
                       whileHover={{ scale: 1.05 }}
                       onClick={() => setSelectedDifficulty(level.id)}
                       className={`p-4 rounded-xl cursor-pointer border transition ${selectedDifficulty === level.id
-                          ? "bg-cyan-600 border-cyan-400"
-                          : "bg-[#1f2937] border-gray-600"
+                        ? "bg-cyan-600 border-cyan-400"
+                        : "bg-[#1f2937] border-gray-600"
                         }`}
                     >
                       <h3 className="font-semibold text-sm">
@@ -437,8 +472,8 @@ export default function QuizApp() {
                       whileHover={{ scale: 1.1 }}
                       onClick={() => setNumQuestions(num)}
                       className={`px-5 py-3 text-center rounded-xl cursor-pointer border ${numQuestions === num
-                          ? "bg-pink-600 border-pink-400"
-                          : "bg-[#1f2937] border-gray-600"
+                        ? "bg-pink-600 border-pink-400"
+                        : "bg-[#1f2937] border-gray-600"
                         }`}
                     >
                       {num}
@@ -497,12 +532,12 @@ export default function QuizApp() {
                     key={i}
                     onClick={() => goToQuestion(i)}
                     className={`w-10 h-10 rounded-lg font-medium transition ${currentQ === i
-                        ? "bg-cyan-600 border-2 border-cyan-400 text-white"
-                        : answers[i] != null
-                          ? answers[i] === questions[i]?.answer
-                            ? "bg-emerald-600/50 border border-emerald-400/50 text-white"
-                            : "bg-red-600/50 border border-red-400/50 text-white"
-                          : "bg-[#1f2937] border border-gray-600 text-gray-400 hover:border-gray-500"
+                      ? "bg-cyan-600 border-2 border-cyan-400 text-white"
+                      : answers[i] != null
+                        ? answers[i] === questions[i]?.answer
+                          ? "bg-emerald-600/50 border border-emerald-400/50 text-white"
+                          : "bg-red-600/50 border border-red-400/50 text-white"
+                        : "bg-[#1f2937] border border-gray-600 text-gray-400 hover:border-gray-500"
                       }`}
                   >
                     {i + 1}
@@ -524,14 +559,14 @@ export default function QuizApp() {
                       onClick={() => handleSelectOption(opt)}
                       disabled={attempted}
                       className={`p-3 rounded-xl border text-left transition ${attempted
-                          ? showCorrect
-                            ? "bg-emerald-600/80 border-emerald-400"
-                            : showWrong
-                              ? "bg-red-600/80 border-red-400"
-                              : "bg-[#1f2937] border-gray-600 opacity-70"
-                          : selected === opt
-                            ? "bg-cyan-600 border-cyan-400"
-                            : "bg-[#1f2937] border-gray-600 hover:border-gray-500"
+                        ? showCorrect
+                          ? "bg-emerald-600/80 border-emerald-400"
+                          : showWrong
+                            ? "bg-red-600/80 border-red-400"
+                            : "bg-[#1f2937] border-gray-600 opacity-70"
+                        : selected === opt
+                          ? "bg-cyan-600 border-cyan-400"
+                          : "bg-[#1f2937] border-gray-600 hover:border-gray-500"
                         }`}
                     >
                       {opt}
@@ -657,12 +692,26 @@ export default function QuizApp() {
                   </ul>
                 </div>
               )}
-              <button
-                onClick={resetQuiz}
-                className="bg-gradient-to-r from-cyan-500 to-pink-500 px-6 py-3 rounded-xl"
-              >
-                Return Home
-              </button>
+              <div className="flex flex-col gap-3 mt-6">
+                <motion.button
+                  whileHover={{ scale: quizSaved ? 1 : 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleSaveQuiz}
+                  disabled={quizSaving || quizSaved}
+                  className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition ${quizSaved
+                    ? "bg-emerald-600/30 border border-emerald-400/50 text-emerald-400 cursor-default"
+                    : "bg-gradient-to-r from-violet-500 to-indigo-600"
+                    }`}
+                >
+                  {quizSaved ? "✓ Saved to Past Quizzes!" : quizSaving ? "Saving..." : "💾 Save to Past Quizzes"}
+                </motion.button>
+                <button
+                  onClick={resetQuiz}
+                  className="bg-gradient-to-r from-cyan-500 to-pink-500 px-6 py-3 rounded-xl w-full"
+                >
+                  Return Home
+                </button>
+              </div>
             </motion.div>
           )}
 

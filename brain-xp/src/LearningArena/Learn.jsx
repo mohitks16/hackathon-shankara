@@ -14,6 +14,7 @@ import {
 import Storyverse from "./Storyverse";
 import BrainBoard from "./BrainBoard";
 import AppliedKnowledge from "./AppliedKnowledge";
+import PastLearnings from "../PastLearnings";
 
 export default function Learn() {
     const heroRef = useRef();
@@ -71,11 +72,13 @@ export default function Learn() {
             icon: <FaScroll />,
             title: "Past StoryVerse Learning",
             desc: "Revisit stories you've explored earlier.",
+            action: () => setActiveApp("pastStories"),
         },
         {
             icon: <FaProjectDiagram />,
             title: "Past BrainBoards",
             desc: "Review your saved mind maps & flash cards.",
+            action: () => setActiveApp("pastBrainboards"),
         },
     ];
 
@@ -95,6 +98,10 @@ export default function Learn() {
 
     if (activeApp === "applied") {
         return <AppliedKnowledge onBack={() => setActiveApp(null)} />;
+    }
+
+    if (activeApp === "pastStories" || activeApp === "pastBrainboards") {
+        return <PastLearnings onBack={() => setActiveApp(null)} initialTab={activeApp === "pastBrainboards" ? "brainboards" : "stories"} />;
     }
 
     const cards = showPastLearnings ? pastLearningCards : mainCards;

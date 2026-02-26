@@ -3,7 +3,7 @@ import { AzureKeyCredential } from "@azure/core-auth";
 
 const token = process.env.GITHUB_TOKEN;
 const endpoint = "https://models.github.ai/inference";
-const model = "openai/gpt-4o";
+const model = "openai/gpt-4o-mini";
 const client = ModelClient(endpoint, new AzureKeyCredential(token));
 
 // ── 1. Generate all Applied Knowledge sections in ONE call ────────────

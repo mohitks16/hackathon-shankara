@@ -3,7 +3,7 @@ import { AzureKeyCredential } from "@azure/core-auth";
 
 const token = process.env.GITHUB_TOKEN;
 const endpoint = "https://models.github.ai/inference";
-const model = "openai/gpt-4o";
+const model = "openai/gpt-4o-mini";
 const client = ModelClient(endpoint, new AzureKeyCredential(token));
 
 const subtopicCount = { novice: 5, achiever: 7, warrior: 10 };

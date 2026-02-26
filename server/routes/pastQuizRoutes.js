@@ -1,12 +1,22 @@
 import express from "express";
 import {
-  listPastAssistedQuizzes,
-  getPastAssistedQuizById,
+  saveAssistedQuiz,
+  listAssistedQuizzes,
+  getAssistedQuizById,
+  renameAssistedQuiz,
+  deleteAssistedQuiz,
+  toggleQuizBookmark,
+  addQuizNote,
 } from "../controllers/pastQuizController.js";
 
 const router = express.Router();
 
-router.get("/assisted", listPastAssistedQuizzes);
-router.get("/assisted/:id", getPastAssistedQuizById);
+router.post("/save", saveAssistedQuiz);
+router.get("/", listAssistedQuizzes);
+router.get("/:id", getAssistedQuizById);
+router.patch("/:id/rename", renameAssistedQuiz);
+router.delete("/:id", deleteAssistedQuiz);
+router.patch("/:id/bookmark", toggleQuizBookmark);
+router.patch("/:id/note", addQuizNote);
 
 export default router;

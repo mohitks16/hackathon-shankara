@@ -14,6 +14,7 @@ import {
     FaChevronUp,
 } from "react-icons/fa";
 import axios from "axios";
+import { addXpToServer, addCoinsToServer } from "./statsUtils";
 
 const DIFFICULTIES = [
     {
@@ -34,7 +35,7 @@ const DIFFICULTIES = [
         border: "border-amber-400",
         bg: "bg-amber-600",
     },
-    
+
     {
         id: "hard",
         label: "Hard",
@@ -78,6 +79,10 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
     // ─── Result state ─────────────────────────────────────────────────
     const [showSolutions, setShowSolutions] = useState(false);
     const [coinsAwarded, setCoinsAwarded] = useState(false);
+    const [savedId, setSavedId] = useState(null);
+    const [bookmarks, setBookmarks] = useState({});
+    const [challengeSaving, setChallengeSaving] = useState(false);
+    const [challengeSaved, setChallengeSaved] = useState(false);
 
     // ─── Difficulty meta ──────────────────────────────────────────────
     const diffMeta = DIFFICULTIES.find((d) => d.id === difficulty);
@@ -173,11 +178,62 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
 
     // Award coins once on result
     useEffect(() => {
-        if (stage === "result" && !coinsAwarded) {
-            onCoinsChange(5);
-            setCoinsAwarded(true);
-        }
+        if (stage !== "result" || coinsAwarded) return;
+        onCoinsChange(5);
+        setCoinsAwarded(true);
     }, [stage, coinsAwarded]);
+
+    // Save challenge to DB on demand
+    const handleSaveChallenge = async () => {
+        if (challengeSaving || challengeSaved) return;
+        setChallengeSaving(true);
+        try {
+            const weakSubtopics = questions
+                .map((q, i) => ({ q, isCorrect: answers[i] === q.answer }))
+                .filter(({ isCorrect }) => !isCorrect)
+                .map(({ q }) => q.subtopic || q.question.slice(0, 40))
+                .filter(Boolean);
+            const uniqueWeak = [...new Set(weakSubtopics)];
+            const payload = {
+                topic, difficulty,
+                questions: questions.map((q, i) => ({
+                    ...q,
+                    userAnswer: answers[i] ?? null,
+                    isCorrect: answers[i] === q.answer,
+                })),
+                score: questions.filter((q, i) => answers[i] === q.answer).length,
+                xpEarned: correctCount * (diffMeta?.xp || 0),
+                coinsEarned: 5,
+                weakSubtopics: uniqueWeak,
+                timeTakenSeconds: 0,
+            };
+            const r = await axios.post("http://localhost:5000/api/past-challenges/save", payload);
+            setSavedId(r.data.id);
+            setChallengeSaved(true);
+            // Persist XP + coins to global stats
+            addXpToServer(correctCount * (diffMeta?.xp || 0), "challenge");
+            addCoinsToServer(5, "challenge-complete");
+        } catch (err) {
+            console.error("Challenge save error:", err);
+        } finally {
+            setChallengeSaving(false);
+        }
+    };
+
+    // Compute weak subtopics for display
+    const weakSubtopicsForDisplay = questions
+        .filter((q, i) => stage === "result" && answers[i] !== q.answer)
+        .map(q => q.subtopic || q.question.slice(0, 40))
+        .filter(Boolean);
+    const uniqueWeakDisplay = [...new Set(weakSubtopicsForDisplay)];
+
+    const toggleBookmark = async (qIdx) => {
+        if (!savedId) return;
+        try {
+            const r = await axios.patch(`http://localhost:5000/api/past-challenges/${savedId}/bookmark`, { questionIndex: qIdx });
+            setBookmarks(prev => ({ ...prev, [qIdx]: r.data.isBookmarked }));
+        } catch (e) { console.error(e); }
+    };
 
     // ═══════════════════════════════════════════════════════════════════
     // CARD ANIMATION VARIANTS
@@ -239,8 +295,8 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                                     whileHover={{ scale: 1.05 }}
                                     onClick={() => setDifficulty(d.id)}
                                     className={`p-4 rounded-xl cursor-pointer border text-center transition ${difficulty === d.id
-                                            ? `${d.bg} ${d.border} border-2`
-                                            : "bg-[#1f2937] border-gray-600 hover:border-gray-500"
+                                        ? `${d.bg} ${d.border} border-2`
+                                        : "bg-[#1f2937] border-gray-600 hover:border-gray-500"
                                         }`}
                                 >
                                     <h3 className="font-bold">{d.label}</h3>
@@ -261,8 +317,8 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                                     whileHover={{ scale: 1.1 }}
                                     onClick={() => setNumQuestions(n)}
                                     className={`px-5 py-2 rounded-xl border font-medium transition ${numQuestions === n
-                                            ? "bg-pink-600 border-pink-400"
-                                            : "bg-[#1f2937] border-gray-600 hover:border-gray-500"
+                                        ? "bg-pink-600 border-pink-400"
+                                        : "bg-[#1f2937] border-gray-600 hover:border-gray-500"
                                         }`}
                                 >
                                     {n}
@@ -300,10 +356,10 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                     <div className="flex items-center justify-between mb-6">
                         <div
                             className={`flex items-center gap-2 text-lg font-mono font-bold px-4 py-2 rounded-xl border ${timerDanger
-                                    ? "border-red-400 text-red-400 bg-red-500/10 animate-pulse"
-                                    : timerWarn
-                                        ? "border-amber-400 text-amber-400 bg-amber-500/10"
-                                        : "border-cyan-400/50 text-cyan-400 bg-cyan-500/10"
+                                ? "border-red-400 text-red-400 bg-red-500/10 animate-pulse"
+                                : timerWarn
+                                    ? "border-amber-400 text-amber-400 bg-amber-500/10"
+                                    : "border-cyan-400/50 text-cyan-400 bg-cyan-500/10"
                                 }`}
                         >
                             <FaClock /> {formatTime(timeLeft)}
@@ -329,10 +385,10 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                                 key={i}
                                 onClick={() => setCurrentQ(i)}
                                 className={`w-10 h-10 rounded-lg font-medium text-sm transition ${currentQ === i
-                                        ? "bg-cyan-600 border-2 border-cyan-400 text-white"
-                                        : answers[i] != null
-                                            ? "bg-indigo-600/50 border border-indigo-400/50 text-white"
-                                            : "bg-[#1f2937] border border-gray-600 text-gray-400 hover:border-gray-500"
+                                    ? "bg-cyan-600 border-2 border-cyan-400 text-white"
+                                    : answers[i] != null
+                                        ? "bg-indigo-600/50 border border-indigo-400/50 text-white"
+                                        : "bg-[#1f2937] border border-gray-600 text-gray-400 hover:border-gray-500"
                                     }`}
                             >
                                 {i + 1}
@@ -370,8 +426,8 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                                             setAnswers((prev) => ({ ...prev, [currentQ]: opt }))
                                         }
                                         className={`p-3 rounded-xl border text-left transition ${isSelected
-                                                ? "bg-cyan-600 border-cyan-400"
-                                                : "bg-[#1f2937] border-gray-600 hover:border-gray-500"
+                                            ? "bg-cyan-600 border-cyan-400"
+                                            : "bg-[#1f2937] border-gray-600 hover:border-gray-500"
                                             }`}
                                     >
                                         {opt}
@@ -467,25 +523,51 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                     </div>
 
                     {/* Coins earned */}
-                    <div className="flex items-center justify-center gap-2 text-yellow-400 font-semibold text-lg mb-6">
+                    <div className="flex items-center justify-center gap-2 text-yellow-400 font-semibold text-lg mb-4">
                         <FaCoins /> +5 Coins Earned!
                     </div>
 
+                    {/* Weak Subtopics */}
+                    {uniqueWeakDisplay.length > 0 && (
+                        <div className="mb-6 text-left bg-amber-500/10 border border-amber-400/30 rounded-xl p-5">
+                            <h3 className="text-base font-semibold text-amber-400 mb-2">⚠️ Weak Areas to Review</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {uniqueWeakDisplay.map((sub, i) => (
+                                    <span key={i} className="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-xs">{sub}</span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Actions */}
-                    <div className="flex gap-4 justify-center">
-                        <button
-                            onClick={() => setShowSolutions((s) => !s)}
-                            className="flex items-center gap-2 px-6 py-3 rounded-xl border border-cyan-400/50 text-cyan-400 hover:bg-cyan-500/10 transition"
+                    <div className="flex flex-col gap-3">
+                        <motion.button
+                            whileHover={{ scale: challengeSaved ? 1 : 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={handleSaveChallenge}
+                            disabled={challengeSaving || challengeSaved}
+                            className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition ${challengeSaved
+                                ? "bg-emerald-600/30 border border-emerald-400/50 text-emerald-400 cursor-default"
+                                : "bg-gradient-to-r from-violet-500 to-indigo-600"
+                                }`}
                         >
-                            {showSolutions ? <FaChevronUp /> : <FaChevronDown />}
-                            {showSolutions ? "Hide Solutions" : "Show Solutions"}
-                        </button>
-                        <button
-                            onClick={onBack}
-                            className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-pink-500 font-semibold transition"
-                        >
-                            Return Home
-                        </button>
+                            {challengeSaved ? "✓ Saved to Past Challenges!" : challengeSaving ? "Saving..." : "💾 Save to Past Challenges"}
+                        </motion.button>
+                        <div className="flex gap-4 justify-center">
+                            <button
+                                onClick={() => setShowSolutions((s) => !s)}
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl border border-cyan-400/50 text-cyan-400 hover:bg-cyan-500/10 transition"
+                            >
+                                {showSolutions ? <FaChevronUp /> : <FaChevronDown />}
+                                {showSolutions ? "Hide Solutions" : "Show Solutions"}
+                            </button>
+                            <button
+                                onClick={onBack}
+                                className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-pink-500 font-semibold transition"
+                            >
+                                Return Home
+                            </button>
+                        </div>
                     </div>
                 </motion.div>
 
@@ -509,8 +591,8 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                                         animate="visible"
                                         variants={cardVariants}
                                         className={`bg-white/5 backdrop-blur-xl border rounded-2xl p-6 ${isCorrect
-                                                ? "border-emerald-400/30"
-                                                : "border-red-400/30"
+                                            ? "border-emerald-400/30"
+                                            : "border-red-400/30"
                                             }`}
                                     >
                                         <div className="flex items-start gap-3 mb-3">
@@ -521,10 +603,17 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                                                     <FaTimesCircle className="text-red-400" />
                                                 )}
                                             </span>
-                                            <div>
-                                                <p className="font-medium text-sm text-gray-400 mb-1">
-                                                    Q{i + 1}
-                                                </p>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="font-medium text-sm text-gray-400 mb-1">Q{i + 1}</p>
+                                                    <button
+                                                        onClick={() => toggleBookmark(i)}
+                                                        title="Bookmark"
+                                                        className={`text-sm px-2 py-0.5 rounded-lg border transition cursor-pointer ${bookmarks[i] ? "text-yellow-400 border-yellow-400/50 bg-yellow-500/10" : "text-gray-500 border-gray-700 hover:text-yellow-400"}`}
+                                                    >
+                                                        {bookmarks[i] ? "★ Bookmarked" : "☆ Bookmark"}
+                                                    </button>
+                                                </div>
                                                 <p className="text-white">{q.question}</p>
                                             </div>
                                         </div>

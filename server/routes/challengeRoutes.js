@@ -9,7 +9,7 @@ import {
 const router = express.Router();
 
 router.post("/generate", generateChallenge);
-router.post("/hint", getChallengeHint);
+router.post("/hint", getChallengeHint); 
 router.get("/past", listPastChallenges);
 router.get("/past/:id", getPastChallengeById);
 

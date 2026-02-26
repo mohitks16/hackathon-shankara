@@ -2,15 +2,11 @@ import ModelClient, { isUnexpected } from "@azure-rest/ai-inference";
 import { AzureKeyCredential } from "@azure/core-auth";
 
 const token = process.env.GITHUB_TOKEN;
-// #region agent log
-fetch('http://127.0.0.1:7542/ingest/ae9920c6-98d1-43cb-a31f-25abc51be2c0', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b588c2' }, body: JSON.stringify({ sessionId: 'b588c2', location: 'mentorController.js:pre-client', message: 'before ModelClient', data: { hasToken: !!token, tokenLen: token?.length }, hypothesisId: 'H5', timestamp: Date.now() }) }).catch(() => { });
-// #endregion
+
 const endpoint = "https://models.github.ai/inference";
-const model = "openai/gpt-4o";
+const model = "openai/gpt-4o-mini";
 const client = ModelClient(endpoint, new AzureKeyCredential(token));
-// #region agent log
-fetch('http://127.0.0.1:7542/ingest/ae9920c6-98d1-43cb-a31f-25abc51be2c0', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'b588c2' }, body: JSON.stringify({ sessionId: 'b588c2', location: 'mentorController.js:post-client', message: 'ModelClient created', data: {}, hypothesisId: 'H6', timestamp: Date.now() }) }).catch(() => { });
-// #endregion
+
 
 // Compact system prompts - minimal tokens, character-specific
 const MENTOR_SYSTEMS = {
