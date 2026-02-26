@@ -136,8 +136,17 @@ export default function GrowthBlueprint() {
             <div className="w-full max-w-6xl text-center">
 
                 {/* HERO */}
-                <div ref={heroRef} className="mb-16">
-                    <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-cyan-400 via-blue-500 to-pink-500 text-transparent bg-clip-text">
+                <div ref={heroRef} className="max-w-4xl mx-auto text-center mb-16 relative z-10">
+                    <button
+                        onClick={() => navigate("/")}
+                        className="absolute -top-6 -left-4 md:-left-12 flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors border border-white/10 bg-white/5 px-4 py-2 rounded-full cursor-pointer"
+                    >
+                        <FaArrowLeft /> Back to Home
+                    </button>
+                    <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 font-medium text-sm mb-6">
+                        <FaMapSigns className="text-lg" />
+                        <span>Your Future, Mapped</span>
+                    </div>    <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-cyan-400 via-blue-500 to-pink-500 text-transparent bg-clip-text">
                         GROWTH BLUEPRINT
                     </h1>
                     <p className="text-gray-400 mt-4 text-lg">

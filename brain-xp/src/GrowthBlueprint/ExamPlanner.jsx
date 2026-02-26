@@ -593,21 +593,63 @@ function ProgressSection({ weeksData, taskStatuses, config, onClose }) {
 // ─────────────────────────────────────────────
 // PLANNER VIEW
 // ─────────────────────────────────────────────
-function PlannerView({ config, onBack }) {
-    const totalWeeks = useMemo(() => getWeeksBetween(new Date(), config.deadline), [config.deadline]);
+function PlannerView({ config, onBack, savedPlan }) {
+    // When savedPlan is provided, hydrate from saved data
+    const isSaved = !!savedPlan;
+
+    const savedWeeksCount = savedPlan?.weeks?.length || 0;
+    const totalWeeks = useMemo(() => {
+        if (isSaved) return savedWeeksCount;
+        return getWeeksBetween(new Date(), config.deadline);
+    }, [isSaved, savedWeeksCount, config?.deadline]);
     const months = useMemo(() => groupWeeksIntoMonths(totalWeeks), [totalWeeks]);
+
+    // Pre-hydrate weeksData and taskStatuses from savedPlan
+    const buildInitialWeeksData = () => {
+        if (!isSaved) return {};
+        const wd = {};
+        (savedPlan.weeks || []).forEach((w, i) => {
+            const weekNum = i + 1;
+            wd[weekNum] = {
+                tasks: (w.tasks || []).map((t, ti) => ({
+                    id: t.id || `saved-${weekNum}-${ti}`,
+                    title: t.title,
+                    subject: t.subject || "",
+                    duration: t.duration || "",
+                    type: t.type || "",
+                    priority: t.priority || "medium",
+                    description: t.description || "",
+                    estimatedMinutes: t.estimatedMinutes || 0,
+                })),
+                loaded: true,
+            };
+        });
+        return wd;
+    };
+
+    const buildInitialTaskStatuses = () => {
+        if (!isSaved) return {};
+        const ts = {};
+        (savedPlan.weeks || []).forEach((w, i) => {
+            (w.tasks || []).forEach((t, ti) => {
+                const id = t.id || `saved-${i + 1}-${ti}`;
+                ts[id] = t.status || "pending";
+            });
+        });
+        return ts;
+    };
 
     const [selectedMonth, setSelectedMonth] = useState(1);
     const [selectedWeek, setSelectedWeek] = useState(null);
-    const [weeksData, setWeeksData] = useState({}); // { weekNum: { tasks: [], loaded: bool } }
-    const [taskStatuses, setTaskStatuses] = useState({}); // { taskId: "done"|"skipped"|"revision"|"practice"|"pending" }
+    const [weeksData, setWeeksData] = useState(buildInitialWeeksData);
+    const [taskStatuses, setTaskStatuses] = useState(buildInitialTaskStatuses);
     const [loading, setLoading] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
     const [editLoading, setEditLoading] = useState(false);
     const [showProgress, setShowProgress] = useState(false);
     const [error, setError] = useState(null);
     const [planSaving, setPlanSaving] = useState(false);
-    const [planSaved, setPlanSaved] = useState(false);
+    const [planSaved, setPlanSaved] = useState(isSaved);
 
     const handleSavePlan = async () => {
         if (planSaving || planSaved) return;
@@ -656,7 +698,8 @@ function PlannerView({ config, onBack }) {
     const handleWeekClick = async (weekNum) => {
         setSelectedWeek(weekNum);
         setShowProgress(false);
-        if (weeksData[weekNum]?.loaded) return; // already generated
+        if (weeksData[weekNum]?.loaded) return; // already generated or saved
+        if (isSaved) return; // saved plans don't generate new weeks
 
         setLoading(true);
         setError(null);
@@ -751,8 +794,8 @@ function PlannerView({ config, onBack }) {
                         onClick={handleSavePlan}
                         disabled={planSaving || planSaved || Object.keys(weeksData).length === 0}
                         className={`rounded-xl px-4 py-2 flex items-center gap-2 text-sm font-semibold transition cursor-pointer ${planSaved
-                                ? "bg-emerald-600/30 border border-emerald-400/50 text-emerald-400"
-                                : "bg-gradient-to-r from-violet-500 to-indigo-600 text-white hover:opacity-90 disabled:opacity-40"
+                            ? "bg-emerald-600/30 border border-emerald-400/50 text-emerald-400"
+                            : "bg-gradient-to-r from-violet-500 to-indigo-600 text-white hover:opacity-90 disabled:opacity-40"
                             }`}
                     >
                         <FaSave />
@@ -903,9 +946,18 @@ function PlannerView({ config, onBack }) {
                                         key={task.id}
                                         task={task}
                                         status={taskStatuses[task.id] || "pending"}
-                                        onStatusChange={(s) =>
-                                            setTaskStatuses((prev) => ({ ...prev, [task.id]: s }))
-                                        }
+                                        onStatusChange={(s) => {
+                                            setTaskStatuses((prev) => ({ ...prev, [task.id]: s }));
+                                            // Persist status change for saved plans
+                                            if (isSaved && savedPlan._id) {
+                                                const wIdx = Number(selectedWeek) - 1;
+                                                const tIdx = weeksData[selectedWeek].tasks.findIndex(t => t.id === task.id);
+                                                axios.patch(
+                                                    `http://localhost:5000/api/exam-plan-history/${savedPlan._id}/task-status`,
+                                                    { weekIndex: wIdx, taskIndex: tIdx, status: s }
+                                                ).catch(e => console.error("Status update error:", e));
+                                            }
+                                        }}
                                         onEdit={setEditingTask}
                                     />
                                 ))}
@@ -967,3 +1019,5 @@ export default function ExamPlanner({ onBack }) {
         </div>
     );
 }
+
+export { PlannerView, getWeeksBetween, groupWeeksIntoMonths, getDeadlineText, TaskCard, EditModal, ProgressSection, LoadingScreen };

@@ -5,6 +5,7 @@ import {
     FaTimesCircle, FaSpinner,
 } from "react-icons/fa";
 import axios from "axios";
+import { FlashCardView, MindMapView } from "./LearningArena/BrainBoard";
 
 const STORY_BASE = "http://localhost:5000/api/story-history";
 const BB_BASE = "http://localhost:5000/api/brainboard-history";
@@ -147,16 +148,44 @@ function BrainBoardDetail({ item, onBack }) {
         await axios.patch(`${BB_BASE}/${item._id}/note`, { note });
         setEditing(false);
     };
+
+    const isFlashcard = item.type === "flashcard";
+    const isMindmap = item.type === "mindmap";
+
+    // For flashcards: data is array of card objects
+    // For mindmap: data is a tree { title, children: [...] }
     return (
-        <div className="max-w-3xl mx-auto">
-            <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 cursor-pointer"><FaArrowLeft /> Back to list</button>
-            <h2 className="text-2xl font-bold text-white mb-1">{item.name || item.concept}</h2>
-            <p className="text-gray-400 text-sm mb-4 capitalize">{item.type} · {item.purpose}</p>
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">
-                <p className="text-gray-400 text-xs font-semibold uppercase mb-2">Content Preview</p>
-                <pre className="text-gray-300 text-xs whitespace-pre-wrap overflow-auto max-h-96">{JSON.stringify(item.data, null, 2)}</pre>
-            </div>
-            <div className="mt-3">
+        <div className="max-w-5xl mx-auto">
+            <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 cursor-pointer">
+                <FaArrowLeft /> Back to list
+            </button>
+
+            {isFlashcard && item.data && (
+                <FlashCardView
+                    concept={item.concept || item.name}
+                    cards={Array.isArray(item.data) ? item.data : item.data.cards || []}
+                    onDone={onBack}
+                />
+            )}
+
+            {isMindmap && item.data && (
+                <MindMapView
+                    concept={item.concept || item.name}
+                    data={item.data}
+                    onDone={onBack}
+                />
+            )}
+
+            {/* Fallback if data is missing */}
+            {!item.data && (
+                <div className="text-center text-gray-400 py-12 bg-white/5 border border-white/10 rounded-2xl">
+                    <p className="text-4xl mb-3">🧠</p>
+                    <p>No content data saved for this BrainBoard.</p>
+                </div>
+            )}
+
+            {/* Note section */}
+            <div className="mt-6">
                 {editing ? (
                     <div className="flex gap-2">
                         <textarea value={note} onChange={e => setNote(e.target.value)} className="flex-1 bg-[#1f2937] border border-gray-600 rounded-xl p-2 text-sm text-white resize-none" rows={3} placeholder="Add a note…" />

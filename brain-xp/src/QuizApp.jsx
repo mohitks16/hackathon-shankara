@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
-import { FaTrophy, FaLightbulb, FaBook, FaExternalLinkAlt } from "react-icons/fa";
+import { FaTrophy, FaLightbulb, FaBook, FaExternalLinkAlt, FaArrowLeft } from "react-icons/fa";
 import axios from "axios";
 import QuizHome from "./QuizHome";
 import PastQuizes from "./PastQuizes";
@@ -72,6 +73,7 @@ export default function QuizApp() {
   const [coins, setCoins] = useState(10);
   const [quizSaving, setQuizSaving] = useState(false);
   const [quizSaved, setQuizSaved] = useState(false);
+  const navigate = useNavigate();
 
   // GENERATE QUIZ
   const generateQuiz = async () => {
@@ -394,6 +396,23 @@ export default function QuizApp() {
               exit={{ opacity: 0, y: -40 }}
               className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl"
             >
+              <div className="max-w-5xl mx-auto">
+                <div className="text-center mb-12 relative">
+                  <button
+                    onClick={() => setStage("home")}
+                    className="absolute -top-2 left-0 md:-left-8 flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors border border-white/10 bg-white/5 px-4 py-2 rounded-full cursor-pointer"
+                  >
+                    <FaArrowLeft /> Back to Home
+                  </button>
+
+                  <h1 className="text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 text-transparent bg-clip-text mb-4 inline-block drop-shadow-sm">
+                    Practice Arena
+                  </h1>
+                  <p className="text-gray-400 text-lg max-w-xl mx-auto">
+                    Challenge yourself across distinct difficulty tiers. Earn XP, coins, and climb the ranks.
+                  </p>
+                </div>
+              </div>
               <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-cyan-400 to-pink-500 text-transparent bg-clip-text">
                 Setup Your Quiz
               </h2>

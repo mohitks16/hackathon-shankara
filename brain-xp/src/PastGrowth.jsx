@@ -5,6 +5,7 @@ import {
     FaCheckCircle, FaRegCircle, FaSpinner,
 } from "react-icons/fa";
 import axios from "axios";
+import { PlannerView } from "./GrowthBlueprint/ExamPlanner";
 
 const PLAN_BASE = "http://localhost:5000/api/exam-plan-history";
 const ROADMAP_BASE = "http://localhost:5000/api/roadmap-history";
@@ -17,72 +18,23 @@ const SECTION_COLORS = {
 
 // ─── Exam Plan Detail ─────────────────────────────────────────────────
 function ExamPlanDetail({ plan, onBack }) {
-    const [weeks, setWeeks] = useState(plan.weeks || []);
-
-    const toggleTask = async (wIdx, tIdx) => {
-        const current = weeks[wIdx]?.tasks?.[tIdx]?.status;
-        const newStatus = current === "done" ? "pending" : "done";
-        const updated = weeks.map((w, wi) => wi === wIdx ? {
-            ...w, tasks: w.tasks.map((t, ti) => ti === tIdx ? { ...t, status: newStatus } : t)
-        } : w);
-        setWeeks(updated);
-        try {
-            await axios.patch(`${PLAN_BASE}/${plan._id}/task-status`, { weekIndex: wIdx, taskIndex: tIdx, status: newStatus });
-        } catch (e) { console.error("Toggle task error:", e); }
+    // Build a config object that PlannerView understands from saved data
+    const config = {
+        examType: plan.examType || "General",
+        examName: plan.examName || plan.name || "Saved Plan",
+        plannerName: plan.name || plan.examName || plan.examType || "Saved Exam Plan",
+        syllabus: plan.syllabus || "",
+        deadline: plan.deadline ? new Date(plan.deadline) : new Date(),
+        weeklyHours: (plan.hoursPerDay || 2) * 7,
     };
 
     return (
-        <div className="max-w-3xl mx-auto">
-            <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 cursor-pointer">
-                <FaArrowLeft /> Back to list
-            </button>
-            <h2 className="text-2xl font-bold text-white mb-1">{plan.name || plan.examType || "Exam Plan"}</h2>
-            <p className="text-gray-400 text-sm mb-6">
-                {plan.examName ? `${plan.examName} · ` : ""}
-                Deadline: {plan.deadline || "—"} · {plan.hoursPerDay || "—"}h/day
-            </p>
-
-            {weeks.length === 0 ? (
-                <div className="text-center text-gray-400 py-12 bg-white/5 border border-white/10 rounded-2xl">
-                    <p className="text-4xl mb-3">📋</p>
-                    <p>No weeks saved in this plan.</p>
-                    <p className="text-sm mt-2 text-gray-500">Generate week plans first, then click "Save Plan".</p>
-                </div>
-            ) : (
-                <div className="space-y-6">
-                    {weeks.map((week, wIdx) => (
-                        <div key={wIdx} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-                            <h3 className="font-bold text-white mb-3 text-sm uppercase tracking-wider">
-                                {week.weekLabel || `Week ${wIdx + 1}`}
-                            </h3>
-                            <div className="space-y-2">
-                                {(week.tasks || []).length === 0 && (
-                                    <p className="text-gray-500 text-sm">No tasks for this week.</p>
-                                )}
-                                {(week.tasks || []).map((task, tIdx) => (
-                                    <div
-                                        key={tIdx}
-                                        className="flex items-start gap-3 cursor-pointer py-1 group"
-                                        onClick={() => toggleTask(wIdx, tIdx)}
-                                    >
-                                        {task.status === "done"
-                                            ? <FaCheckCircle className="text-emerald-400 shrink-0 mt-0.5" />
-                                            : <FaRegCircle className="text-gray-600 shrink-0 mt-0.5 group-hover:text-gray-400 transition" />}
-                                        <div>
-                                            <span className={`text-sm ${task.status === "done" ? "line-through text-gray-500" : "text-gray-200"}`}>
-                                                {task.title}
-                                            </span>
-                                            {task.subject && (
-                                                <p className="text-xs text-gray-500 mt-0.5">{task.subject}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+        <div className="w-full">
+            <PlannerView
+                config={config}
+                onBack={onBack}
+                savedPlan={plan}
+            />
         </div>
     );
 }

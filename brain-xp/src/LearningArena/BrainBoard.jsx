@@ -491,7 +491,7 @@ function CompleteStage({ concept, mode, onBack, onChallenge, onSave }) {
                     onClick={handleSave}
                     disabled={saving || saved}
                     className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition ${saved ? "bg-emerald-600/30 border border-emerald-400/50 text-emerald-400 cursor-default"
-                            : "bg-gradient-to-r from-violet-500 to-indigo-600 hover:opacity-90"
+                        : "bg-gradient-to-r from-violet-500 to-indigo-600 hover:opacity-90"
                         }`}
                 >
                     <FaSave />
@@ -622,3 +622,5 @@ export default function BrainBoard({ onBack, onNavigateToChallenge }) {
         </div>
     );
 }
+
+export { MindMapNode, MindMapView, FlashCardView };
