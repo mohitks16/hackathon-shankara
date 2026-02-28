@@ -56,3 +56,17 @@ export async function fetchStats() {
         return null;
     }
 }
+
+/**
+ * Add XP, fetch updated stats, and check if level-up occurred.
+ * Returns { stats, levelUp } where levelUp is the result from checkLevelUp (or null).
+ */
+export async function addXpAndCheckLevelUp(previousXP, xp, source = "general") {
+    const { checkLevelUp } = await import("./levelUtils.js");
+    await addXpToServer(xp, source);
+    const stats = await fetchStats();
+    if (!stats) return { stats: null, levelUp: null };
+    const levelUp = checkLevelUp(previousXP, stats.totalXP);
+    return { stats, levelUp };
+}
+

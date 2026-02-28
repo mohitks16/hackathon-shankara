@@ -1,8 +1,11 @@
 import ChallengeModel from "../modal/PracticeArenaModal/Challenge.js";
 import WeakSubtopic from "../modal/WeakSubtopicsModal/WeakSubtopic.js";
 import Stats from "../modal/XPandCoinsModal/Stats.js";
+import StudyLog from "../modal/BrainResetModal/StudyLog.js";
+import RevisionNotification from "../modal/BrainResetModal/RevisionNotification.js";
 
 const USER_ID = "guest";
+const REVISION_INTERVALS = [1, 5, 14, 30];
 
 // ── Save challenge after result ───────────────────────────────────────
 export async function saveChallenge(req, res) {
@@ -31,6 +34,20 @@ export async function saveChallenge(req, res) {
             timeTakenSeconds: timeTakenSeconds || 0,
             name: `${topic} — ${new Date().toLocaleDateString()}`,
         });
+
+        // Log study for forgetting curve notifications
+        try {
+            const log = await StudyLog.create({ userId: USER_ID, topic, source: "challenge" });
+            const notifications = REVISION_INTERVALS.map((days) => ({
+                userId: USER_ID,
+                studyLogId: log._id,
+                topic,
+                source: "challenge",
+                dayInterval: days,
+                dueDate: new Date(Date.now() + days * 86400000),
+            }));
+            await RevisionNotification.insertMany(notifications, { ordered: false }).catch(() => { });
+        } catch (e) { /* non-critical */ }
 
         res.status(201).json({ id: challenge._id, message: "Challenge saved" });
     } catch (err) {

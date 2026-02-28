@@ -32,12 +32,22 @@ const SESSION_PROMPT = (mentor, topic) =>
 {"subtopics":["s1","s2",...],"welcome":"1-2 sentences greeting","firstQuestion":"1 MCQ or short Q from first subtopic"}`;
 
 // Chat turn - compact state, get reply + next action
-const CHAT_PROMPT = (mentor, topic, hist, subtopicIdx, lastQ, perf, qInSub) =>
-  `Topic:${topic} SubtopicsIdx:${subtopicIdx} QInSub:${qInSub} C:${perf.correct} W:${perf.wrong} LastQ:${lastQ}
+const CHAT_PROMPT = (mentor, topic, hist, subtopicIdx, lastQ, perf, qInSub, subtopicsList) => {
+  const currentSub = subtopicsList[subtopicIdx] || "unknown";
+  const nextSub = subtopicsList[subtopicIdx + 1] || null;
+  const shouldMove = qInSub >= 4;
+  return `Topic:${topic}
+Subtopics:[${subtopicsList.map((s, i) => `${i}:"${s}"`).join(",")}]
+CurrentSubtopic(${subtopicIdx}):"${currentSub}" QuestionsAskedInThisSubtopic:${qInSub} ${nextSub ? `NextSubtopic(${subtopicIdx + 1}):"${nextSub}"` : "NO_MORE_SUBTOPICS"}
+C:${perf.correct} W:${perf.wrong} LastQ:${lastQ}
 Conv: ${hist.map((m) => m.role + ":" + String(m.content).slice(0, 80)).join(" | ")}
 Evaluate user's last msg vs LastQ. Reply JSON only:
-{"reply":"1-2 sent feedback/solution","correct":bool,"moveToNext":bool if qInSub>=3,"completedSubtopic":${subtopicIdx},"xpEarned":2 if correct,"newQuestion":"next Q","waitingForAnswer":true}
-Rules: Correct→brief praise+new Q variation. Wrong→solution+related Q. qInSub>=3→moveToNext true.`;
+{"reply":"1-2 sent feedback","correct":bool,"moveToNext":${shouldMove},"completedSubtopic":${shouldMove ? subtopicIdx : -1},"xpEarned":2 if correct else 0,"newQuestion":"next Q from ${shouldMove && nextSub ? `subtopic '${nextSub}'` : `subtopic '${currentSub}'`}","waitingForAnswer":true}
+CRITICAL RULES:
+- ${shouldMove ? `You MUST set moveToNext:true and completedSubtopic:${subtopicIdx}. The newQuestion MUST be about "${nextSub || currentSub}", NOT about any previous subtopic.` : `moveToNext must be false. The newQuestion MUST be about "${currentSub}" only.`}
+- Correct→brief praise+new Q. Wrong→brief solution+related Q from same subtopic.
+- NEVER ask questions from subtopics other than the one specified above.`;
+};
 
 async function callAI(system, user, temperature = 0.7) {
   const res = await client.path("/chat/completions").post({
@@ -99,9 +109,10 @@ export async function chat(req, res) {
     const qInSub = req.body.questionsInSubtopic ?? 0;
     const sys = MENTOR_SYSTEMS[mentorId];
 
+    const subtopicsList = Array.isArray(subtopics) ? subtopics : [];
     const parsed = await callAI(
       sys,
-      CHAT_PROMPT(mentorId, topic, hist, currentSubtopicIndex ?? 0, lastQuestion || "", perf, qInSub),
+      CHAT_PROMPT(mentorId, topic, hist, currentSubtopicIndex ?? 0, lastQuestion || "", perf, qInSub, subtopicsList),
       0.5
     );
 

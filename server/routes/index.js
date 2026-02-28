@@ -17,6 +17,8 @@ import counsellorRoutes from "./counsellorRoutes.js";
 import destinyRoutes from "./destinyDesignerRoutes.js";
 import roadmapHistoryRoutes from "./roadmapHistoryRoutes.js";
 import statsRoutes from "./statsRoutes.js";
+import brainResetRoutes from "./brainResetRoutes.js";
+import badgeRoutes from "./badgeRoutes.js";
 
 const router = express.Router();
 
@@ -50,5 +52,11 @@ router.use("/api/roadmap-history", roadmapHistoryRoutes);
 
 // Global Stats & Weak Subtopics
 router.use("/api/stats", statsRoutes);
+
+// Brain Reset (Revision Module)
+router.use("/api/brain-reset", brainResetRoutes);
+
+// Badges
+router.use("/api/badges", badgeRoutes);
 
 export default router;

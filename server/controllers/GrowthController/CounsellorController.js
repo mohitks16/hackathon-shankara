@@ -3,8 +3,9 @@ import { AzureKeyCredential } from "@azure/core-auth";
 
 const token = process.env.GITHUB_TOKEN;
 const endpoint = "https://models.github.ai/inference";
-const model = "openai/gpt-4o-mini";
+const model = "openai/gpt-4o";
 const client = ModelClient(endpoint, new AzureKeyCredential(token));
+
 
 // ── Generate All Questions (ONE call) ─────────────────────────────────
 // Returns 25 MCQ questions covering 8 career assessment dimensions.

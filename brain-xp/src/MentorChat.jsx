@@ -22,7 +22,7 @@ export default function MentorChat({
   const [waitingForAnswer, setWaitingForAnswer] = useState(false);
   const [lastQuestion, setLastQuestion] = useState("");
   const [performance, setPerformance] = useState({ correct: 0, wrong: 0 });
-  const [questionsInSubtopic, setQuestionsInSubtopic] = useState(1);
+  const [questionsInSubtopic, setQuestionsInSubtopic] = useState(0);
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -42,6 +42,7 @@ export default function MentorChat({
       const { subtopics: st, welcomeMessage, firstQuestion } = res.data;
       setSubtopics(st || []);
       setSessionStarted(true);
+      setQuestionsInSubtopic(1); // firstQuestion counts as question #1
       setMessages([
         { role: "tutor", content: welcomeMessage },
         { role: "tutor", content: firstQuestion, isQuestion: true },
@@ -104,10 +105,10 @@ export default function MentorChat({
         setPerformance((p) => ({ ...p, wrong: p.wrong + 1 }));
       }
 
-      if (moveToNext && completedSubtopic !== undefined) {
+      if (moveToNext && completedSubtopic !== undefined && completedSubtopic >= 0) {
         setSubtopicStatus((s) => ({ ...s, [completedSubtopic]: "done" }));
         setCurrentSubtopicIdx((i) => Math.min(i + 1, subtopics.length - 1));
-        setQuestionsInSubtopic(0);
+        setQuestionsInSubtopic(1); // new question is #1 for the new subtopic
       } else if (newQuestion) {
         setQuestionsInSubtopic((n) => n + 1);
       }
@@ -191,13 +192,12 @@ export default function MentorChat({
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2 ${
-                  msg.role === "user"
+                className={`max-w-[85%] rounded-2xl px-4 py-2 ${msg.role === "user"
                     ? "bg-cyan-600/50 border border-cyan-400/30"
                     : msg.isError
-                    ? "bg-red-900/30 border border-red-400/30"
-                    : "bg-white/5 border border-white/10"
-                }`}
+                      ? "bg-red-900/30 border border-red-400/30"
+                      : "bg-white/5 border border-white/10"
+                  }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                 {msg.nextQuestion && (
@@ -253,13 +253,12 @@ export default function MentorChat({
                   x: 0,
                   scale: currentSubtopicIdx === i ? 1.02 : 1,
                 }}
-                className={`rounded-lg px-3 py-2 text-xs border transition ${
-                  subtopicStatus[i] === "done"
+                className={`rounded-lg px-3 py-2 text-xs border transition ${subtopicStatus[i] === "done"
                     ? "bg-emerald-500/20 border-emerald-400/50 text-emerald-300"
                     : currentSubtopicIdx === i
-                    ? "bg-cyan-500/20 border-cyan-400/50 text-cyan-300"
-                    : "bg-white/5 border-white/10 text-gray-400"
-                }`}
+                      ? "bg-cyan-500/20 border-cyan-400/50 text-cyan-300"
+                      : "bg-white/5 border-white/10 text-gray-400"
+                  }`}
               >
                 <span className="font-medium">{i + 1}.</span> {st}
                 {subtopicStatus[i] === "done" && " ✓"}

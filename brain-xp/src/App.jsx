@@ -20,9 +20,16 @@ import {
   FaProjectDiagram,
   FaFlask,
   FaBookOpen,
-  FaBrain
+  FaBrain,
+  FaUser,
+  FaBell,
+  FaTimes,
 } from "react-icons/fa";
-import { fetchStats } from "./statsUtils";
+import axios from "axios";
+import { fetchStats, addXpToServer, addCoinsToServer } from "./statsUtils";
+import { getLevelFromXP, checkLevelUp, getLevelUpRewards } from "./levelUtils";
+import LevelUpModal from "./LevelUpModal";
+import BadgeModal from "./BadgeModal";
 
 // ─── QUOTES ──────────────────────────────────────────────
 const QUOTES = [
@@ -32,31 +39,50 @@ const QUOTES = [
   "Turn your passion into your profession.",
 ];
 
-// ─── HELPER FOR RANK/LEVEL ───────────────────────────────
-function getLevelDetails(xp) {
-  const level = Math.floor(xp / 1000) + 1;
-  let rank = "Novice";
-  let badgeColor = "text-gray-400";
-
-  if (level >= 50) { rank = "Grandmaster"; badgeColor = "text-purple-500"; }
-  else if (level >= 25) { rank = "Master"; badgeColor = "text-red-500"; }
-  else if (level >= 10) { rank = "Expert"; badgeColor = "text-yellow-400"; }
-  else if (level >= 5) { rank = "Scholar"; badgeColor = "text-blue-400"; }
-  else if (level >= 2) { rank = "Apprentice"; badgeColor = "text-emerald-400"; }
-
-  return { level, rank, badgeColor };
-}
-
 export default function App() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({ totalXP: 0, totalCoins: 0 });
   const [quoteIdx, setQuoteIdx] = useState(0);
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpData, setLevelUpData] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [revisionNotifs, setRevisionNotifs] = useState([]);
+  const [showRevisionPopup, setShowRevisionPopup] = useState(false);
+  const [badgeQueue, setBadgeQueue] = useState([]);
+  const [currentBadge, setCurrentBadge] = useState(null);
+  const [userBadges, setUserBadges] = useState([]);
 
-  // Fetch stats on mount
+  // Fetch stats + revision notifications on mount
   useEffect(() => {
     fetchStats().then((data) => {
       if (data) setStats(data);
     });
+
+    // Fetch revision notifications (forgetting curve)
+    axios.get("http://localhost:5000/api/brain-reset/notifications")
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          setRevisionNotifs(res.data);
+          setShowRevisionPopup(true);
+        }
+      })
+      .catch(() => { });
+
+    // Record login + check badges
+    axios.post("http://localhost:5000/api/badges/record-login")
+      .then(() => axios.post("http://localhost:5000/api/badges/check"))
+      .then((res) => {
+        if (res.data.newBadges && res.data.newBadges.length > 0) {
+          setBadgeQueue(res.data.newBadges);
+          setCurrentBadge(res.data.newBadges[0]);
+        }
+      })
+      .catch(() => { });
+
+    // Fetch earned badges for profile
+    axios.get("http://localhost:5000/api/badges")
+      .then((res) => setUserBadges(res.data))
+      .catch(() => { });
 
     // Rotate quotes every 5 seconds
     const interval = setInterval(() => {
@@ -65,7 +91,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  const { level, rank, badgeColor } = getLevelDetails(stats.totalXP);
+  const levelInfo = getLevelFromXP(stats.totalXP);
 
   // ─── HOT FEATURES ROSTER ───────────────────────────────
   const hotFeatures = [
@@ -74,7 +100,7 @@ export default function App() {
       desc: "Get 1-on-1 guidance from top industry experts.",
       icon: <FaChalkboardTeacher />,
       gradient: "from-purple-500 to-indigo-600",
-      action: () => navigate("/MasterMentors"),
+      action: () => navigate("/QuizApp?stage=mentorSelect"),
     },
     {
       title: "Exam Planners",
@@ -120,26 +146,182 @@ export default function App() {
     },
   ];
 
+  // ─── Level-up dismiss handler ─────────────────────────
+  const handleLevelUpDismiss = async () => {
+    if (levelUpData?.rewards) {
+      // Award bonus XP and coins
+      await addXpToServer(levelUpData.rewards.bonusXP, "level-up-bonus");
+      await addCoinsToServer(levelUpData.rewards.bonusCoins, "level-up-bonus");
+      const updated = await fetchStats();
+      if (updated) setStats(updated);
+    }
+    setShowLevelUp(false);
+    setLevelUpData(null);
+  };
+
+  // ─── Bracket color helper ─────────────────────────────
+  const bracketColor = () => {
+    switch (levelInfo.bracket) {
+      case "Seeding": return "text-emerald-400";
+      case "Apprentice": return "text-blue-400";
+      case "Scholar": return "text-purple-400";
+      case "Legend": return "text-amber-400";
+      default: return "text-gray-400";
+    }
+  };
+
+  const bracketGradient = () => {
+    switch (levelInfo.bracket) {
+      case "Seeding": return "from-emerald-500 to-green-600";
+      case "Apprentice": return "from-blue-500 to-cyan-600";
+      case "Scholar": return "from-purple-500 to-violet-600";
+      case "Legend": return "from-amber-500 to-yellow-600";
+      default: return "from-gray-500 to-gray-600";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#111827] to-black text-white selection:bg-cyan-500/30 font-sans overflow-x-hidden">
 
+      {/* ─── LEVEL UP MODAL ─── */}
+      <LevelUpModal show={showLevelUp} levelUpData={levelUpData} onDismiss={handleLevelUpDismiss} />
+
       {/* ─── NAVBAR ─── */}
       <nav className="flex items-center justify-between px-6 py-4 md:px-12 backdrop-blur-md bg-[#0f172a]/80 sticky top-0 z-50 border-b border-white/10 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-tr from-cyan-400 to-blue-600 p-2 lg:p-3 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-            <FaGraduationCap className="text-white text-2xl lg:text-3xl" />
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 to-blue-500 text-transparent bg-clip-text">
-              Eduventure
-            </h1>
-            <span className="text-[10px] lg:text-xs text-cyan-400/80 font-medium tracking-widest pl-1">
-              (by team CodeTitans)
-            </span>
-          </div>
+        {/* LEFT: Profile Button with Level */}
+        <div className="relative">
+          <button
+            onClick={() => setShowProfile(!showProfile)}
+            className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-full px-4 py-2 hover:bg-white/10 transition-all group"
+          >
+            <div className={`bg-gradient-to-tr ${bracketGradient()} p-2 rounded-full shadow-lg`}>
+              <FaUser className="text-white text-sm" />
+            </div>
+            <div className="flex flex-col items-start">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold">Lvl {levelInfo.level}</span>
+                <span className={`text-xs font-semibold ${bracketColor()}`}>
+                  {levelInfo.bracketIcon} {levelInfo.bracket}
+                </span>
+              </div>
+              {/* Mini progress bar */}
+              <div className="w-24 h-1.5 bg-white/10 rounded-full overflow-hidden mt-0.5">
+                <motion.div
+                  className={`h-full bg-gradient-to-r ${bracketGradient()} rounded-full`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.round(levelInfo.progress * 100)}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                />
+              </div>
+            </div>
+          </button>
+
+          {/* Profile Dropdown */}
+          <AnimatePresence>
+            {showProfile && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                className="absolute top-full left-0 mt-2 w-72 bg-[#1e293b]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-2xl z-50"
+              >
+                <div className="text-center mb-4">
+                  <div className={`inline-flex bg-gradient-to-tr ${bracketGradient()} p-4 rounded-full shadow-lg mb-3`}>
+                    <FaUser className="text-white text-2xl" />
+                  </div>
+                  <h3 className="text-lg font-bold">{levelInfo.bracketIcon} Level {levelInfo.level}</h3>
+                  <p className={`text-sm font-semibold ${bracketColor()}`}>{levelInfo.bracket}</p>
+                </div>
+
+                {/* XP Progress */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-gray-400 mb-1">
+                    <span>Level {levelInfo.level}</span>
+                    <span>Level {levelInfo.level + 1}</span>
+                  </div>
+                  <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+                    <motion.div
+                      className={`h-full bg-gradient-to-r ${bracketGradient()} rounded-full`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.round(levelInfo.progress * 100)}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1 text-center">
+                    {levelInfo.xpInLevel} / {levelInfo.xpNeededForNext} XP
+                  </p>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                    <FaStar className="text-yellow-400 mx-auto mb-1" />
+                    <p className="text-lg font-bold">{stats.totalXP}</p>
+                    <p className="text-xs text-gray-400">Total XP</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                    <FaCoins className="text-yellow-300 mx-auto mb-1" />
+                    <p className="text-lg font-bold">{stats.totalCoins}</p>
+                    <p className="text-xs text-gray-400">Coins</p>
+                  </div>
+                </div>
+
+                {/* Badges in profile */}
+                {userBadges.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <p className="text-xs text-gray-400 mb-2 text-left">Badges Earned</p>
+                    <div className="flex flex-col gap-1.5">
+                      {(() => {
+                        const highest = {};
+                        for (const b of userBadges) {
+                          if (!highest[b.category] || b.tier > highest[b.category].tier) highest[b.category] = b;
+                        }
+                        return Object.values(highest).map((b) => (
+                          <div key={b.category} className="flex items-center gap-2 bg-white/5 border border-white/5 rounded-lg px-3 py-1.5">
+                            <span className="text-base">
+                              {b.category === 'practice' ? '⚔️' : b.category === 'streak' ? '🔥' : b.category === 'learning' ? '📚' : '🎯'}
+                            </span>
+                            <span className="text-xs font-semibold text-white">{b.badgeName}</span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* PROFILE CHIP */}
+        {/* CENTER: Brain Reset Button */}
+        <button
+          onClick={() => navigate("/BrainReset")}
+          className="relative flex items-center gap-2 bg-rose-500/10 border border-rose-500/30 rounded-full px-4 py-2 hover:bg-rose-500/20 transition-all text-rose-400 font-semibold text-sm"
+        >
+          <FaBrain className="text-lg" />
+          <span className="hidden sm:inline">Brain Reset</span>
+          {revisionNotifs.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+              {revisionNotifs.length > 9 ? "9+" : revisionNotifs.length}
+            </span>
+          )}
+        </button>
+
+        {/* Badges Button */}
+        <button
+          onClick={() => navigate("/Badges")}
+          className="relative flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-4 py-2 hover:bg-yellow-500/20 transition-all text-yellow-400 font-semibold text-sm"
+        >
+          <FaMedal className="text-lg" />
+          <span className="hidden sm:inline">Badges</span>
+          {userBadges.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 text-black text-[10px] font-bold rounded-full flex items-center justify-center">
+              {userBadges.length}
+            </span>
+          )}
+        </button>
+
+        {/* RIGHT: Quick Stats Chip */}
         <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-full px-5 py-2 shadow-inner">
           <div className="flex items-center gap-2" title="Total XP">
             <FaStar className="text-yellow-400" />
@@ -152,7 +334,7 @@ export default function App() {
           </div>
           <div className="hidden sm:block w-px h-4 bg-white/20"></div>
           <div className="hidden sm:flex items-center gap-2 uppercase text-xs font-black tracking-widest text-gray-400">
-            <FaMedal className={`text-lg ${badgeColor}`} /> {rank} Lvl {level}
+            <FaMedal className={`text-lg ${bracketColor()}`} /> {levelInfo.bracket} Lvl {levelInfo.level}
           </div>
         </div>
       </nav>
@@ -168,12 +350,21 @@ export default function App() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
-              <h2 className="text-5xl md:text-7xl font-black leading-tight">
-                Level Up Your <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600">
-                  Mind.
-                </span>
-              </h2>
+              {/* Eduventure Logo in Hero */}
+              <div className="flex items-center gap-4 mb-4">
+                <div className="bg-gradient-to-tr from-cyan-400 to-blue-600 p-3 lg:p-4 rounded-2xl shadow-[0_0_25px_rgba(6,182,212,0.5)]">
+                  <FaGraduationCap className="text-white text-3xl lg:text-4xl" />
+                </div>
+                <div className="flex flex-col">
+                  <h1 className="text-5xl md:text-7xl font-black tracking-tight bg-gradient-to-r from-cyan-300 to-blue-500 text-transparent bg-clip-text">
+                    Eduventure
+                  </h1>
+                  <span className="text-[10px] lg:text-xs text-cyan-400/80 font-medium tracking-widest pl-1">
+                    (by team CodeTitans)
+                  </span>
+                </div>
+              </div>
+
               <div className="mt-4 h-16 relative overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.p
@@ -201,48 +392,52 @@ export default function App() {
               </button>
             </motion.div>
           </div>
-
-          {/* ─── SWIPER AUTO SLIDER (HOT FEATURES) ─── */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1 }}
-            className="flex justify-center lg:justify-end"
-          >
-            <div className="w-full max-w-[320px] aspect-[3/4] perspective-1000 relative">
-              {/* Decorative background glow */}
-              <div className="absolute inset-0 bg-blue-500/20 blur-[100px] rounded-full"></div>
-
-              <Swiper
-                effect={"cards"}
-                grabCursor={true}
-                modules={[EffectCards, Autoplay, Navigation]}
-                autoplay={{ delay: 3000, disableOnInteraction: false }}
-                loop={true}
-                navigation={true}
-                className="w-full h-full drop-shadow-2xl"
-              >
-                {hotFeatures.map((feat, i) => (
-                  <SwiperSlide key={i} className="rounded-3xl overflow-hidden cursor-pointer" onClick={feat.action}>
-                    <div className={`w-full h-full bg-gradient-to-br ${feat.gradient} p-8 flex flex-col justify-end relative shadow-inner border border-white/20`}>
-                      <div className="absolute top-6 right-6 text-white/50 text-6xl">
-                        {feat.icon}
-                      </div>
-                      <div className="bg-black/40 backdrop-blur-md p-6 rounded-2xl border border-white/10 transform translate-y-4 shadow-xl">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FaFire className="text-orange-400" />
-                          <p className="text-xs font-bold text-orange-200 uppercase tracking-widest">Hot Feature</p>
-                        </div>
-                        <h3 className="text-2xl font-black text-white mb-2">{feat.title}</h3>
-                        <p className="text-sm text-gray-200">{feat.desc}</p>
-                      </div>
-                    </div>
-                  </SwiperSlide>
-                ))}
-              </Swiper>
-            </div>
-          </motion.div>
         </div>
+
+        {/* ─── SWIPER AUTO SLIDER (HOT FEATURES) ─── */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1 }}
+        >
+          <div className="w-full max-w-[900px] relative">
+            {/* Decorative background glow */}
+            <div className="absolute inset-0 bg-blue-500/20 blur-[100px] rounded-full"></div>
+
+            <Swiper
+              slidesPerView={1}
+              spaceBetween={20}
+              breakpoints={{
+                640: { slidesPerView: 2 },
+                1024: { slidesPerView: 3 },
+              }}
+              grabCursor={true}
+              modules={[Autoplay, Navigation]}
+              autoplay={{ delay: 3000, disableOnInteraction: false }}
+              loop={true}
+              navigation={true}
+              className="w-full drop-shadow-2xl !pb-2"
+            >
+              {hotFeatures.map((feat, i) => (
+                <SwiperSlide key={i} className="rounded-3xl overflow-hidden cursor-pointer" onClick={feat.action}>
+                  <div className={`w-full h-[280px] bg-gradient-to-br ${feat.gradient} p-6 flex flex-col justify-end relative shadow-inner border border-white/20 rounded-3xl`}>
+                    <div className="absolute top-5 right-5 text-white/50 text-5xl">
+                      {feat.icon}
+                    </div>
+                    <div className="bg-black/40 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-xl">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FaFire className="text-orange-400" />
+                        <p className="text-xs font-bold text-orange-200 uppercase tracking-widest">Hot Feature</p>
+                      </div>
+                      <h3 className="text-xl font-black text-white mb-1">{feat.title}</h3>
+                      <p className="text-xs text-gray-200">{feat.desc}</p>
+                    </div>
+                  </div>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+        </motion.div>
 
         {/* ─── MAJOR MODULES GRID ─── */}
         <div className="pt-10 border-t border-white/10">
@@ -313,13 +508,85 @@ export default function App() {
           </div>
         </div>
 
-      </main>
+      </main >
 
       {/* FOOTER */}
-      <footer className="border-t border-white/10 mt-12 py-8 text-center text-gray-500 text-sm bg-black/50">
+      < footer className="border-t border-white/10 mt-12 py-8 text-center text-gray-500 text-sm bg-black/50" >
         <p>Powered by AI • Gamified Learning • Ready for the Future</p>
-      </footer>
-    </div>
+      </footer >
+
+      {/* REVISION NOTIFICATION POPUP */}
+      < AnimatePresence >
+        {showRevisionPopup && revisionNotifs.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.8, y: 40 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, y: 40 }}
+              className="bg-[#1e293b]/95 backdrop-blur-xl border border-white/10 rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <FaBell className="text-amber-400 text-xl" />
+                  <h3 className="text-lg font-bold text-white">Revision Reminder</h3>
+                </div>
+                <button
+                  onClick={() => setShowRevisionPopup(false)}
+                  className="text-gray-400 hover:text-white transition p-1"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+              <p className="text-gray-400 text-sm mb-4">
+                Based on your study history, these topics need review to beat the forgetting curve:
+              </p>
+              <div className="space-y-2 mb-5 max-h-40 overflow-y-auto">
+                {revisionNotifs.slice(0, 5).map((n) => (
+                  <div key={n._id} className="flex items-center gap-3 bg-amber-500/10 border border-amber-400/20 rounded-xl px-4 py-2.5">
+                    <span className="text-sm">{n.dayInterval === 1 ? "🟢" : n.dayInterval === 5 ? "🔵" : n.dayInterval === 14 ? "🟠" : "🟣"}</span>
+                    <span className="text-sm text-white font-medium flex-1">{n.topic}</span>
+                    <span className="text-xs text-amber-400 font-semibold">{n.dayInterval}d</span>
+                  </div>
+                ))}
+                {revisionNotifs.length > 5 && (
+                  <p className="text-xs text-gray-500 text-center">+{revisionNotifs.length - 5} more</p>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRevisionPopup(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-white/10 text-gray-400 hover:bg-white/5 transition text-sm"
+                >
+                  Later
+                </button>
+                <button
+                  onClick={() => { setShowRevisionPopup(false); navigate("/BrainReset"); }}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold text-sm"
+                >
+                  Open Brain Reset
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )
+        }
+      </AnimatePresence >
+
+      {/* BADGE CONGRATULATION MODAL */}
+      < BadgeModal
+        badge={currentBadge}
+        onClose={() => {
+          const remaining = badgeQueue.slice(1);
+          setBadgeQueue(remaining);
+          setCurrentBadge(remaining.length > 0 ? remaining[0] : null);
+        }}
+      />
+    </div >
   );
 }
 

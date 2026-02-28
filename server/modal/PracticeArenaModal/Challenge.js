@@ -11,6 +11,8 @@ const ChallengeQuestionSchema = new mongoose.Schema({
     isBookmarked: { type: Boolean, default: false },
     note: { type: String, default: "" },
     subtopic: { type: String, default: "" },
+    timeTakenSeconds: { type: Number, default: 0 },
+    difficulty: { type: String, default: "" },
 });
 
 const ChallengeSchema = new mongoose.Schema(

@@ -84,6 +84,10 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
     const [challengeSaving, setChallengeSaving] = useState(false);
     const [challengeSaved, setChallengeSaved] = useState(false);
 
+    // Per-question timing
+    const [questionTimes, setQuestionTimes] = useState({});
+    const questionStartRef = useRef(Date.now());
+
     // ─── Difficulty meta ──────────────────────────────────────────────
     const diffMeta = DIFFICULTIES.find((d) => d.id === difficulty);
 
@@ -92,6 +96,8 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
     // ═══════════════════════════════════════════════════════════════════
     useEffect(() => {
         if (stage !== "quiz") return;
+        // Reset question start time whenever current question changes
+        questionStartRef.current = Date.now();
         timerRef.current = setInterval(() => {
             setTimeLeft((prev) => {
                 if (prev <= 1) {
@@ -200,12 +206,14 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                     ...q,
                     userAnswer: answers[i] ?? null,
                     isCorrect: answers[i] === q.answer,
+                    timeTakenSeconds: questionTimes[i] || 0,
+                    difficulty: difficulty,
                 })),
                 score: questions.filter((q, i) => answers[i] === q.answer).length,
                 xpEarned: correctCount * (diffMeta?.xp || 0),
                 coinsEarned: 5,
                 weakSubtopics: uniqueWeak,
-                timeTakenSeconds: 0,
+                timeTakenSeconds: Object.values(questionTimes).reduce((a, b) => a + b, 0),
             };
             const r = await axios.post("http://localhost:5000/api/past-challenges/save", payload);
             setSavedId(r.data.id);
@@ -422,9 +430,14 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                                 return (
                                     <button
                                         key={i}
-                                        onClick={() =>
-                                            setAnswers((prev) => ({ ...prev, [currentQ]: opt }))
-                                        }
+                                        onClick={() => {
+                                            // Record time for this question if not already recorded
+                                            if (!questionTimes[currentQ]) {
+                                                const elapsed = Math.round((Date.now() - questionStartRef.current) / 1000);
+                                                setQuestionTimes((prev) => ({ ...prev, [currentQ]: elapsed }));
+                                            }
+                                            setAnswers((prev) => ({ ...prev, [currentQ]: opt }));
+                                        }}
                                         className={`p-3 rounded-xl border text-left transition ${isSelected
                                             ? "bg-cyan-600 border-cyan-400"
                                             : "bg-[#1f2937] border-gray-600 hover:border-gray-500"
@@ -460,16 +473,29 @@ export default function Challenge({ onBack, coins, onCoinsChange }) {
                         {/* Prev / Next */}
                         <div className="mt-6 flex justify-between">
                             <button
-                                onClick={() => setCurrentQ((p) => Math.max(0, p - 1))}
+                                onClick={() => {
+                                    // Save time for current question before navigating
+                                    if (answers[currentQ] != null && !questionTimes[currentQ]) {
+                                        const elapsed = Math.round((Date.now() - questionStartRef.current) / 1000);
+                                        setQuestionTimes((prev) => ({ ...prev, [currentQ]: elapsed }));
+                                    }
+                                    questionStartRef.current = Date.now();
+                                    setCurrentQ((p) => Math.max(0, p - 1));
+                                }}
                                 disabled={currentQ === 0}
                                 className="flex items-center gap-2 px-5 py-2 rounded-xl border border-gray-600 text-gray-300 hover:bg-white/5 transition disabled:opacity-30"
                             >
                                 <FaArrowLeft /> Prev
                             </button>
                             <button
-                                onClick={() =>
-                                    setCurrentQ((p) => Math.min(questions.length - 1, p + 1))
-                                }
+                                onClick={() => {
+                                    if (answers[currentQ] != null && !questionTimes[currentQ]) {
+                                        const elapsed = Math.round((Date.now() - questionStartRef.current) / 1000);
+                                        setQuestionTimes((prev) => ({ ...prev, [currentQ]: elapsed }));
+                                    }
+                                    questionStartRef.current = Date.now();
+                                    setCurrentQ((p) => Math.min(questions.length - 1, p + 1));
+                                }}
                                 disabled={currentQ === questions.length - 1}
                                 className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 transition disabled:opacity-30"
                             >

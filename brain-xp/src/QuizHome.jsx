@@ -1,11 +1,13 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import gsap from "gsap";
 import { useEffect, useRef } from "react";
-import { FaPlay, FaHistory, FaRobot, FaTrophy, FaGraduationCap } from "react-icons/fa";
+import { FaPlay, FaHistory, FaRobot, FaTrophy, FaGraduationCap, FaArrowLeft } from "react-icons/fa";
 
 export default function QuizHome({ onStart, onPastQuizzes, onMasterMentors, onChallenge }) {
   const heroRef = useRef();
+  const navigate = useNavigate();
 
   useEffect(() => {
     gsap.from(heroRef.current, {
@@ -34,7 +36,13 @@ export default function QuizHome({ onStart, onPastQuizzes, onMasterMentors, onCh
       <div className="w-full max-w-6xl text-center">
 
         {/* HERO SECTION */}
-        <div ref={heroRef} className="mb-16">
+        <div ref={heroRef} className="mb-16 relative">
+          <button
+            onClick={() => navigate("/")}
+            className="absolute -top-6 left-0 md:-left-4 flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors border border-white/10 bg-white/5 px-4 py-2 rounded-full cursor-pointer"
+          >
+            <FaArrowLeft /> Back to Home
+          </button>
           <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-cyan-400 via-blue-500 to-pink-500 text-transparent bg-clip-text">
             PRACTICE ARENA
           </h1>

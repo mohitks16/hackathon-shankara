@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { FaTrophy, FaLightbulb, FaBook, FaExternalLinkAlt, FaArrowLeft } from "react-icons/fa";
@@ -47,14 +47,16 @@ const difficultyLevels = [
   },
   {
     id: "adaptive",
-    title: "Fate’s Chosen",
+    title: "Fate's Chosen",
     desc: "Adaptive difficulty. Every question varies in challenge and XP.",
     xp: "dynamic",
   },
 ];
 
 export default function QuizApp() {
-  const [stage, setStage] = useState("home");
+  const [searchParams] = useSearchParams();
+  const initialStage = searchParams.get("stage") || "home";
+  const [stage, setStage] = useState(initialStage);
   const [topic, setTopic] = useState("");
   const [numQuestions, setNumQuestions] = useState(5);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
