@@ -4,7 +4,6 @@ import Stats from "../modal/XPandCoinsModal/Stats.js";
 import StudyLog from "../modal/BrainResetModal/StudyLog.js";
 import RevisionNotification from "../modal/BrainResetModal/RevisionNotification.js";
 
-const USER_ID = "guest";
 const REVISION_INTERVALS = [1, 5, 14, 30];
 
 // ── Save challenge after result ───────────────────────────────────────
@@ -13,21 +12,21 @@ export async function saveChallenge(req, res) {
         const { topic, difficulty, questions, score, xpEarned, coinsEarned, weakSubtopics, timeTakenSeconds } = req.body;
 
         await Stats.findOneAndUpdate(
-            { userId: USER_ID },
+            { userId: req.user.id },
             { $inc: { totalXP: xpEarned || 0, totalCoins: coinsEarned || 0 }, $push: { history: { source: "challenge", xp: xpEarned || 0, coins: coinsEarned || 0 } } },
             { upsert: true }
         );
 
         for (const sub of (weakSubtopics || [])) {
             await WeakSubtopic.findOneAndUpdate(
-                { userId: USER_ID, subtopic: sub, source: "challenge" },
+                { userId: req.user.id, subtopic: sub, source: "challenge" },
                 { $inc: { count: 1 }, $set: { lastSeenAt: new Date() } },
                 { upsert: true }
             );
         }
 
         const challenge = await ChallengeModel.create({
-            userId: USER_ID, topic, difficulty,
+            userId: req.user.id, topic, difficulty,
             questions: questions || [],
             score: score || 0, xpEarned: xpEarned || 0, coinsEarned: coinsEarned || 0,
             weakSubtopics: weakSubtopics || [],
@@ -37,9 +36,9 @@ export async function saveChallenge(req, res) {
 
         // Log study for forgetting curve notifications
         try {
-            const log = await StudyLog.create({ userId: USER_ID, topic, source: "challenge" });
+            const log = await StudyLog.create({ userId: req.user.id, topic, source: "challenge" });
             const notifications = REVISION_INTERVALS.map((days) => ({
-                userId: USER_ID,
+                userId: req.user.id,
                 studyLogId: log._id,
                 topic,
                 source: "challenge",
@@ -59,7 +58,7 @@ export async function saveChallenge(req, res) {
 // ── List ─────────────────────────────────────────────────────────────
 export async function listChallenges(req, res) {
     try {
-        const list = await ChallengeModel.find({ userId: USER_ID })
+        const list = await ChallengeModel.find({ userId: req.user.id })
             .select("_id name topic difficulty score xpEarned coinsEarned weakSubtopics createdAt")
             .sort({ createdAt: -1 });
         res.json(list);
@@ -71,7 +70,7 @@ export async function listChallenges(req, res) {
 // ── Get by id ────────────────────────────────────────────────────────
 export async function getChallengeById(req, res) {
     try {
-        const ch = await ChallengeModel.findOne({ _id: req.params.id, userId: USER_ID });
+        const ch = await ChallengeModel.findOne({ _id: req.params.id, userId: req.user.id });
         if (!ch) return res.status(404).json({ error: "Not found" });
         res.json(ch);
     } catch (err) {
@@ -82,7 +81,7 @@ export async function getChallengeById(req, res) {
 // ── Rename ───────────────────────────────────────────────────────────
 export async function renameChallenge(req, res) {
     try {
-        await ChallengeModel.findOneAndUpdate({ _id: req.params.id, userId: USER_ID }, { name: req.body.name });
+        await ChallengeModel.findOneAndUpdate({ _id: req.params.id, userId: req.user.id }, { name: req.body.name });
         res.json({ message: "Renamed" });
     } catch (err) {
         res.status(500).json({ error: "Failed to rename" });
@@ -92,7 +91,7 @@ export async function renameChallenge(req, res) {
 // ── Delete ───────────────────────────────────────────────────────────
 export async function deleteChallenge(req, res) {
     try {
-        await ChallengeModel.findOneAndDelete({ _id: req.params.id, userId: USER_ID });
+        await ChallengeModel.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
         res.json({ message: "Deleted" });
     } catch (err) {
         res.status(500).json({ error: "Failed to delete" });

@@ -1,12 +1,11 @@
 import ExamPlan from "../../modal/GrowthBlueprintModal/ExamPlan.js";
 
-const USER_ID = "guest";
 
 export async function saveExamPlan(req, res) {
     try {
         const { examType, syllabus, hoursPerDay, deadline, weeks, name } = req.body;
         const plan = await ExamPlan.create({
-            userId: USER_ID, examType, syllabus, hoursPerDay, deadline,
+            userId: req.user.id, examType, syllabus, hoursPerDay, deadline,
             weeks: weeks || [],
             name: name || `${examType} — ${new Date().toLocaleDateString()}`,
         });
@@ -19,7 +18,7 @@ export async function saveExamPlan(req, res) {
 
 export async function listExamPlans(req, res) {
     try {
-        const list = await ExamPlan.find({ userId: USER_ID })
+        const list = await ExamPlan.find({ userId: req.user.id })
             .select("_id name examType deadline createdAt")
             .sort({ createdAt: -1 });
         res.json(list);
@@ -30,7 +29,7 @@ export async function listExamPlans(req, res) {
 
 export async function getExamPlanById(req, res) {
     try {
-        const plan = await ExamPlan.findOne({ _id: req.params.id, userId: USER_ID });
+        const plan = await ExamPlan.findOne({ _id: req.params.id, userId: req.user.id });
         if (!plan) return res.status(404).json({ error: "Not found" });
         res.json(plan);
     } catch (err) {
@@ -40,7 +39,7 @@ export async function getExamPlanById(req, res) {
 
 export async function deleteExamPlan(req, res) {
     try {
-        await ExamPlan.findOneAndDelete({ _id: req.params.id, userId: USER_ID });
+        await ExamPlan.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
         res.json({ message: "Deleted" });
     } catch (err) {
         res.status(500).json({ error: "Failed to delete" });
@@ -49,7 +48,7 @@ export async function deleteExamPlan(req, res) {
 
 export async function renameExamPlan(req, res) {
     try {
-        await ExamPlan.findOneAndUpdate({ _id: req.params.id, userId: USER_ID }, { name: req.body.name });
+        await ExamPlan.findOneAndUpdate({ _id: req.params.id, userId: req.user.id }, { name: req.body.name });
         res.json({ message: "Renamed" });
     } catch (err) {
         res.status(500).json({ error: "Failed to rename" });
@@ -60,7 +59,7 @@ export async function renameExamPlan(req, res) {
 export async function updateTaskStatus(req, res) {
     try {
         const { weekIndex, taskIndex, status } = req.body;
-        const plan = await ExamPlan.findOne({ _id: req.params.id, userId: USER_ID });
+        const plan = await ExamPlan.findOne({ _id: req.params.id, userId: req.user.id });
         if (!plan) return res.status(404).json({ error: "Not found" });
         plan.weeks[weekIndex].tasks[taskIndex].status = status;
         await plan.save();

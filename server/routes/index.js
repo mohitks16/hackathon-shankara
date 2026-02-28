@@ -1,6 +1,7 @@
 import express from "express";
 import { healthCheck, apiRoot } from "../controllers/healthController.js";
 import { generateQuiz } from "../controllers/quizController.js";
+import authRoutes from "./authRoutes.js";
 import quizRoutes from "./quizRoutes.js";
 import pastQuizRoutes from "./pastQuizRoutes.js";
 import challengeRoutes from "./challengeRoutes.js";
@@ -19,12 +20,19 @@ import roadmapHistoryRoutes from "./roadmapHistoryRoutes.js";
 import statsRoutes from "./statsRoutes.js";
 import brainResetRoutes from "./brainResetRoutes.js";
 import badgeRoutes from "./badgeRoutes.js";
+import { requireAuth } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 // Health and root
 router.get("/health", healthCheck);
 router.get("/", apiRoot);
+
+// Auth routes (unprotected for login/signup)
+router.use("/api/auth", authRoutes);
+
+// Apply auth middleware to ALL routes below this line
+router.use("/api", requireAuth);
 
 // Legacy route
 router.post("/generate-quiz", generateQuiz);

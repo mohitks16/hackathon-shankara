@@ -16,21 +16,35 @@ import BrainBoard from './LearningArena/BrainBoard.jsx';
 import BrainReset from './BrainReset/BrainReset.jsx';
 import Badges from './Badges/Badges.jsx';
 
+import Login from './Login.jsx';
+import Signup from './Signup.jsx';
+import { AuthProvider } from './AuthContext.jsx';
+import ProtectedRoute from './ProtectedRoute.jsx';
+
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
-    <Routes>
-      <Route path='/' element={<App />} />
-      <Route path='/QuizApp' element={<QuizApp />} />
-      <Route path='/Learn' element={<Learn />} />
-      <Route path='/Growth' element={<GrowthBlueprint />} />
-      <Route path='/CarrerCounsellor' element={<CarrerCounsellor />} />
-      <Route path='/ExamPlanner' element={<ExamPlanner onBack={() => window.history.back()} />} />
-      <Route path='/DestinyDesigner' element={<DestinyDesigner onBack={() => window.history.back()} />} />
-      <Route path='/AppliedKnowledge' element={<AppliedKnowledge onBack={() => window.history.back()} />} />
-      <Route path='/Storyverse' element={<Storyverse onBack={() => window.history.back()} />} />
-      <Route path='/BrainBoard' element={<BrainBoard onBack={() => window.history.back()} />} />
-      <Route path='/BrainReset' element={<BrainReset />} />
-      <Route path='/Badges' element={<Badges />} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        {/* Public Routes */}
+        <Route path='/login' element={<Login />} />
+        <Route path='/signup' element={<Signup />} />
+
+        {/* Protected Routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path='/' element={<App />} />
+          <Route path='/QuizApp' element={<QuizApp />} />
+          <Route path='/Learn' element={<Learn />} />
+          <Route path='/Growth' element={<GrowthBlueprint />} />
+          <Route path='/CarrerCounsellor' element={<CarrerCounsellor />} />
+          <Route path='/ExamPlanner' element={<ExamPlanner onBack={() => window.history.back()} />} />
+          <Route path='/DestinyDesigner' element={<DestinyDesigner onBack={() => window.history.back()} />} />
+          <Route path='/AppliedKnowledge' element={<AppliedKnowledge onBack={() => window.history.back()} />} />
+          <Route path='/Storyverse' element={<Storyverse onBack={() => window.history.back()} />} />
+          <Route path='/BrainBoard' element={<BrainBoard onBack={() => window.history.back()} />} />
+          <Route path='/BrainReset' element={<BrainReset />} />
+          <Route path='/Badges' element={<Badges />} />
+        </Route>
+      </Routes>
+    </AuthProvider>
   </BrowserRouter>
 )

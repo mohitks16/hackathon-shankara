@@ -1,12 +1,11 @@
 import BrainBoardModel from "../../modal/LearningArenaModal/BrainBoard.js";
 
-const USER_ID = "guest";
 
 export async function saveBrainBoard(req, res) {
     try {
         const { concept, purpose, type, data } = req.body;
         const bb = await BrainBoardModel.create({
-            userId: USER_ID, concept, purpose, type, data,
+            userId: req.user.id, concept, purpose, type, data,
             name: `${concept} (${type}) — ${new Date().toLocaleDateString()}`,
         });
         res.status(201).json({ id: bb._id });
@@ -18,7 +17,7 @@ export async function saveBrainBoard(req, res) {
 
 export async function listBrainBoards(req, res) {
     try {
-        const list = await BrainBoardModel.find({ userId: USER_ID })
+        const list = await BrainBoardModel.find({ userId: req.user.id })
             .select("_id name concept type createdAt")
             .sort({ createdAt: -1 });
         res.json(list);
@@ -29,7 +28,7 @@ export async function listBrainBoards(req, res) {
 
 export async function getBrainBoardById(req, res) {
     try {
-        const bb = await BrainBoardModel.findOne({ _id: req.params.id, userId: USER_ID });
+        const bb = await BrainBoardModel.findOne({ _id: req.params.id, userId: req.user.id });
         if (!bb) return res.status(404).json({ error: "Not found" });
         res.json(bb);
     } catch (err) {
@@ -39,7 +38,7 @@ export async function getBrainBoardById(req, res) {
 
 export async function deleteBrainBoard(req, res) {
     try {
-        await BrainBoardModel.findOneAndDelete({ _id: req.params.id, userId: USER_ID });
+        await BrainBoardModel.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
         res.json({ message: "Deleted" });
     } catch (err) {
         res.status(500).json({ error: "Failed to delete" });
@@ -48,7 +47,7 @@ export async function deleteBrainBoard(req, res) {
 
 export async function addBrainBoardNote(req, res) {
     try {
-        const bb = await BrainBoardModel.findOne({ _id: req.params.id, userId: USER_ID });
+        const bb = await BrainBoardModel.findOne({ _id: req.params.id, userId: req.user.id });
         if (!bb) return res.status(404).json({ error: "Not found" });
         bb.note = req.body.note;
         await bb.save();

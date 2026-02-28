@@ -30,6 +30,7 @@ import { fetchStats, addXpToServer, addCoinsToServer } from "./statsUtils";
 import { getLevelFromXP, checkLevelUp, getLevelUpRewards } from "./levelUtils";
 import LevelUpModal from "./LevelUpModal";
 import BadgeModal from "./BadgeModal";
+import { useAuth } from "./AuthContext";
 
 // ─── QUOTES ──────────────────────────────────────────────
 const QUOTES = [
@@ -41,6 +42,7 @@ const QUOTES = [
 
 export default function App() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [stats, setStats] = useState({ totalXP: 0, totalCoins: 0 });
   const [quoteIdx, setQuoteIdx] = useState(0);
   const [showLevelUp, setShowLevelUp] = useState(false);
@@ -288,6 +290,19 @@ export default function App() {
                     </div>
                   </div>
                 )}
+
+                {/* Logout Button */}
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <button
+                    onClick={() => {
+                      logout();
+                      navigate("/login");
+                    }}
+                    className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-semibold rounded-xl border border-red-500/20 transition-all text-sm"
+                  >
+                    Sign Out
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -300,29 +315,33 @@ export default function App() {
         >
           <FaBrain className="text-lg" />
           <span className="hidden sm:inline">Brain Reset</span>
-          {revisionNotifs.length > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
-              {revisionNotifs.length > 9 ? "9+" : revisionNotifs.length}
-            </span>
-          )}
-        </button>
+          {
+            revisionNotifs.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                {revisionNotifs.length > 9 ? "9+" : revisionNotifs.length}
+              </span>
+            )
+          }
+        </button >
 
         {/* Badges Button */}
-        <button
+        < button
           onClick={() => navigate("/Badges")}
           className="relative flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-4 py-2 hover:bg-yellow-500/20 transition-all text-yellow-400 font-semibold text-sm"
         >
           <FaMedal className="text-lg" />
           <span className="hidden sm:inline">Badges</span>
-          {userBadges.length > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 text-black text-[10px] font-bold rounded-full flex items-center justify-center">
-              {userBadges.length}
-            </span>
-          )}
-        </button>
+          {
+            userBadges.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 text-black text-[10px] font-bold rounded-full flex items-center justify-center">
+                {userBadges.length}
+              </span>
+            )
+          }
+        </button >
 
         {/* RIGHT: Quick Stats Chip */}
-        <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-full px-5 py-2 shadow-inner">
+        < div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-full px-5 py-2 shadow-inner" >
           <div className="flex items-center gap-2" title="Total XP">
             <FaStar className="text-yellow-400" />
             <span className="font-bold">{stats.totalXP}</span>
@@ -336,8 +355,8 @@ export default function App() {
           <div className="hidden sm:flex items-center gap-2 uppercase text-xs font-black tracking-widest text-gray-400">
             <FaMedal className={`text-lg ${bracketColor()}`} /> {levelInfo.bracket} Lvl {levelInfo.level}
           </div>
-        </div>
-      </nav>
+        </div >
+      </nav >
 
       <main className="max-w-7xl mx-auto px-6 py-12 md:py-20 flex flex-col gap-20">
 

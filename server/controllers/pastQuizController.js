@@ -2,7 +2,6 @@ import AssistedQuiz from "../modal/PracticeArenaModal/AssistedQuiz.js";
 import WeakSubtopic from "../modal/WeakSubtopicsModal/WeakSubtopic.js";
 import Stats from "../modal/XPandCoinsModal/Stats.js";
 
-const USER_ID = "guest";
 
 // ── Save quiz after result ────────────────────────────────────────────
 export async function saveAssistedQuiz(req, res) {
@@ -11,7 +10,7 @@ export async function saveAssistedQuiz(req, res) {
 
     // Upsert XP
     await Stats.findOneAndUpdate(
-      { userId: USER_ID },
+      { userId: req.user.id },
       { $inc: { totalXP }, $push: { history: { source: "assisted_quiz", xp: totalXP, coins: 0 } } },
       { upsert: true }
     );
@@ -19,14 +18,14 @@ export async function saveAssistedQuiz(req, res) {
     // Upsert weak subtopics counts
     for (const sub of (weakSubtopics || [])) {
       await WeakSubtopic.findOneAndUpdate(
-        { userId: USER_ID, subtopic: sub, source: "quiz" },
+        { userId: req.user.id, subtopic: sub, source: "quiz" },
         { $inc: { count: 1 }, $set: { lastSeenAt: new Date() } },
         { upsert: true }
       );
     }
 
     const quiz = await AssistedQuiz.create({
-      userId: USER_ID, topic, difficulty,
+      userId: req.user.id, topic, difficulty,
       questions: questions || [],
       score: score || 0, totalXP: totalXP || 0,
       weakSubtopics: weakSubtopics || [],
@@ -43,7 +42,7 @@ export async function saveAssistedQuiz(req, res) {
 // ── List all past quizzes ─────────────────────────────────────────────
 export async function listAssistedQuizzes(req, res) {
   try {
-    const quizzes = await AssistedQuiz.find({ userId: USER_ID })
+    const quizzes = await AssistedQuiz.find({ userId: req.user.id })
       .select("_id name topic difficulty score totalXP weakSubtopics createdAt")
       .sort({ createdAt: -1 });
     res.json(quizzes);
@@ -55,7 +54,7 @@ export async function listAssistedQuizzes(req, res) {
 // ── Get single quiz detail ────────────────────────────────────────────
 export async function getAssistedQuizById(req, res) {
   try {
-    const quiz = await AssistedQuiz.findOne({ _id: req.params.id, userId: USER_ID });
+    const quiz = await AssistedQuiz.findOne({ _id: req.params.id, userId: req.user.id });
     if (!quiz) return res.status(404).json({ error: "Not found" });
     res.json(quiz);
   } catch (err) {
@@ -67,7 +66,7 @@ export async function getAssistedQuizById(req, res) {
 export async function renameAssistedQuiz(req, res) {
   try {
     const { name } = req.body;
-    await AssistedQuiz.findOneAndUpdate({ _id: req.params.id, userId: USER_ID }, { name });
+    await AssistedQuiz.findOneAndUpdate({ _id: req.params.id, userId: req.user.id }, { name });
     res.json({ message: "Renamed" });
   } catch (err) {
     res.status(500).json({ error: "Failed to rename" });
@@ -77,7 +76,7 @@ export async function renameAssistedQuiz(req, res) {
 // ── Delete ────────────────────────────────────────────────────────────
 export async function deleteAssistedQuiz(req, res) {
   try {
-    await AssistedQuiz.findOneAndDelete({ _id: req.params.id, userId: USER_ID });
+    await AssistedQuiz.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     res.json({ message: "Deleted" });
   } catch (err) {
     res.status(500).json({ error: "Failed to delete" });
@@ -88,7 +87,7 @@ export async function deleteAssistedQuiz(req, res) {
 export async function toggleQuizBookmark(req, res) {
   try {
     const { questionIndex } = req.body;
-    const quiz = await AssistedQuiz.findOne({ _id: req.params.id, userId: USER_ID });
+    const quiz = await AssistedQuiz.findOne({ _id: req.params.id, userId: req.user.id });
     if (!quiz) return res.status(404).json({ error: "Not found" });
     quiz.questions[questionIndex].isBookmarked = !quiz.questions[questionIndex].isBookmarked;
     await quiz.save();
@@ -102,7 +101,7 @@ export async function toggleQuizBookmark(req, res) {
 export async function addQuizNote(req, res) {
   try {
     const { questionIndex, note } = req.body;
-    const quiz = await AssistedQuiz.findOne({ _id: req.params.id, userId: USER_ID });
+    const quiz = await AssistedQuiz.findOne({ _id: req.params.id, userId: req.user.id });
     if (!quiz) return res.status(404).json({ error: "Not found" });
     quiz.questions[questionIndex].note = note;
     await quiz.save();

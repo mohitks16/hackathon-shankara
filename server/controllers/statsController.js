@@ -1,13 +1,13 @@
 import Stats from "../modal/XPandCoinsModal/Stats.js";
 import WeakSubtopic from "../modal/WeakSubtopicsModal/WeakSubtopic.js";
 
-const USER_ID = "guest";
+
 
 // ── Get global stats ──────────────────────────────────────────────────
 export async function getStats(req, res) {
     try {
         const stats = await Stats.findOneAndUpdate(
-            { userId: USER_ID },
+            { userId: req.user.id },
             {},
             { upsert: true, new: true }
         );
@@ -22,7 +22,7 @@ export async function addXP(req, res) {
     try {
         const { xp, source } = req.body;
         const stats = await Stats.findOneAndUpdate(
-            { userId: USER_ID },
+            { userId: req.user.id },
             { $inc: { totalXP: xp }, $push: { history: { source, xp, coins: 0 } } },
             { upsert: true, new: true }
         );
@@ -37,7 +37,7 @@ export async function addCoins(req, res) {
     try {
         const { coins, source } = req.body;
         const stats = await Stats.findOneAndUpdate(
-            { userId: USER_ID },
+            { userId: req.user.id },
             { $inc: { totalCoins: coins }, $push: { history: { source, xp: 0, coins } } },
             { upsert: true, new: true }
         );
@@ -50,7 +50,7 @@ export async function addCoins(req, res) {
 // ── Get weak subtopics ────────────────────────────────────────────────
 export async function getWeakSubtopics(req, res) {
     try {
-        const weak = await WeakSubtopic.find({ userId: USER_ID })
+        const weak = await WeakSubtopic.find({ userId: req.user.id })
             .sort({ count: -1, lastSeenAt: -1 })
             .limit(20);
         res.json(weak);

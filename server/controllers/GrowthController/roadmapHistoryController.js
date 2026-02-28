@@ -1,12 +1,11 @@
 import CareerRoadmap from "../../modal/GrowthBlueprintModal/CareerRoadmap.js";
 
-const USER_ID = "guest";
 
 export async function saveRoadmap(req, res) {
     try {
         const { career, sections, name } = req.body;
         const roadmap = await CareerRoadmap.create({
-            userId: USER_ID, career, sections: sections || [],
+            userId: req.user.id, career, sections: sections || [],
             name: name || `${career} Roadmap — ${new Date().toLocaleDateString()}`,
         });
         res.status(201).json({ id: roadmap._id });
@@ -18,7 +17,7 @@ export async function saveRoadmap(req, res) {
 
 export async function listRoadmaps(req, res) {
     try {
-        const list = await CareerRoadmap.find({ userId: USER_ID })
+        const list = await CareerRoadmap.find({ userId: req.user.id })
             .select("_id career name createdAt")
             .sort({ createdAt: -1 });
         res.json(list);
@@ -29,7 +28,7 @@ export async function listRoadmaps(req, res) {
 
 export async function getRoadmapById(req, res) {
     try {
-        const r = await CareerRoadmap.findOne({ _id: req.params.id, userId: USER_ID });
+        const r = await CareerRoadmap.findOne({ _id: req.params.id, userId: req.user.id });
         if (!r) return res.status(404).json({ error: "Not found" });
         res.json(r);
     } catch (err) {
@@ -39,7 +38,7 @@ export async function getRoadmapById(req, res) {
 
 export async function deleteRoadmap(req, res) {
     try {
-        await CareerRoadmap.findOneAndDelete({ _id: req.params.id, userId: USER_ID });
+        await CareerRoadmap.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
         res.json({ message: "Deleted" });
     } catch (err) {
         res.status(500).json({ error: "Failed to delete" });
@@ -48,7 +47,7 @@ export async function deleteRoadmap(req, res) {
 
 export async function addRoadmapNote(req, res) {
     try {
-        const r = await CareerRoadmap.findOne({ _id: req.params.id, userId: USER_ID });
+        const r = await CareerRoadmap.findOne({ _id: req.params.id, userId: req.user.id });
         if (!r) return res.status(404).json({ error: "Not found" });
         r.note = req.body.note;
         await r.save();

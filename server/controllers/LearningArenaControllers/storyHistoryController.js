@@ -2,14 +2,13 @@ import Story from "../../modal/LearningArenaModal/Story.js";
 import WeakSubtopic from "../../modal/WeakSubtopicsModal/WeakSubtopic.js";
 import Stats from "../../modal/XPandCoinsModal/Stats.js";
 
-const USER_ID = "guest";
 
 export async function saveStory(req, res) {
     try {
         const { topic, difficulty, subtopics, wrongAnswers, xpEarned } = req.body;
 
         await Stats.findOneAndUpdate(
-            { userId: USER_ID },
+            { userId: req.user.id },
             { $inc: { totalXP: xpEarned || 0 }, $push: { history: { source: "story", xp: xpEarned || 0, coins: 0 } } },
             { upsert: true }
         );
@@ -17,7 +16,7 @@ export async function saveStory(req, res) {
         for (const w of (wrongAnswers || [])) {
             if (w.subtopic) {
                 await WeakSubtopic.findOneAndUpdate(
-                    { userId: USER_ID, subtopic: w.subtopic, source: "story" },
+                    { userId: req.user.id, subtopic: w.subtopic, source: "story" },
                     { $inc: { count: 1 }, $set: { lastSeenAt: new Date() } },
                     { upsert: true }
                 );
@@ -25,7 +24,7 @@ export async function saveStory(req, res) {
         }
 
         const story = await Story.create({
-            userId: USER_ID, topic, difficulty,
+            userId: req.user.id, topic, difficulty,
             subtopics: subtopics || [],
             wrongAnswers: wrongAnswers || [],
             xpEarned: xpEarned || 0,
@@ -41,7 +40,7 @@ export async function saveStory(req, res) {
 
 export async function listStories(req, res) {
     try {
-        const stories = await Story.find({ userId: USER_ID })
+        const stories = await Story.find({ userId: req.user.id })
             .select("_id name topic difficulty xpEarned createdAt")
             .sort({ createdAt: -1 });
         res.json(stories);
@@ -52,7 +51,7 @@ export async function listStories(req, res) {
 
 export async function getStoryById(req, res) {
     try {
-        const s = await Story.findOne({ _id: req.params.id, userId: USER_ID });
+        const s = await Story.findOne({ _id: req.params.id, userId: req.user.id });
         if (!s) return res.status(404).json({ error: "Not found" });
         res.json(s);
     } catch (err) {
@@ -62,7 +61,7 @@ export async function getStoryById(req, res) {
 
 export async function deleteStory(req, res) {
     try {
-        await Story.findOneAndDelete({ _id: req.params.id, userId: USER_ID });
+        await Story.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
         res.json({ message: "Deleted" });
     } catch (err) {
         res.status(500).json({ error: "Failed to delete" });
@@ -72,7 +71,7 @@ export async function deleteStory(req, res) {
 export async function addStoryNote(req, res) {
     try {
         const { subtopicIndex, note } = req.body;
-        const s = await Story.findOne({ _id: req.params.id, userId: USER_ID });
+        const s = await Story.findOne({ _id: req.params.id, userId: req.user.id });
         if (!s) return res.status(404).json({ error: "Not found" });
         if (subtopicIndex !== undefined) s.subtopics[subtopicIndex].note = note;
         else s.note = note;

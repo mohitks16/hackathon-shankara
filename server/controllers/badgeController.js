@@ -6,16 +6,15 @@ import Story from "../modal/LearningArenaModal/Story.js";
 import BrainBoard from "../modal/LearningArenaModal/BrainBoard.js";
 import { BADGE_CATEGORIES, getTierForValue } from "./badgeDefinitions.js";
 
-const USER_ID = "guest";
 
 // ─── Record login & update streak ────────────────────────────────────
 export async function recordLogin(req, res) {
     try {
         const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
-        let streak = await LoginStreak.findOne({ userId: USER_ID });
+        let streak = await LoginStreak.findOne({ userId: req.user.id });
         if (!streak) {
-            streak = await LoginStreak.create({ userId: USER_ID, currentStreak: 1, longestStreak: 1, lastLoginDate: today });
+            streak = await LoginStreak.create({ userId: req.user.id, currentStreak: 1, longestStreak: 1, lastLoginDate: today });
             return res.json({ currentStreak: 1, longestStreak: 1, isNewDay: true });
         }
 
@@ -49,10 +48,10 @@ export async function recordLogin(req, res) {
 }
 
 // ─── Compute metrics from DB ─────────────────────────────────────────
-async function computeMetrics() {
+async function computeMetrics(userId) {
     // Practice: total questions attempted
-    const challenges = await ChallengeModel.find({ userId: USER_ID });
-    const quizzes = await AssistedQuiz.find({ userId: USER_ID });
+    const challenges = await ChallengeModel.find({ userId });
+    const quizzes = await AssistedQuiz.find({ userId });
 
     let totalQuestionsAttempted = 0;
     let totalCorrect = 0;
@@ -67,12 +66,12 @@ async function computeMetrics() {
     }
 
     // Learning: stories + brainboards completed
-    const storyCount = await Story.countDocuments({ userId: USER_ID });
-    const boardCount = await BrainBoard.countDocuments({ userId: USER_ID });
+    const storyCount = await Story.countDocuments({ userId });
+    const boardCount = await BrainBoard.countDocuments({ userId });
     const totalLearning = storyCount + boardCount;
 
     // Streak
-    const streak = await LoginStreak.findOne({ userId: USER_ID });
+    const streak = await LoginStreak.findOne({ userId });
     const currentStreak = streak?.longestStreak || 0;
 
     return {
@@ -86,8 +85,8 @@ async function computeMetrics() {
 // ─── Check & award badges ────────────────────────────────────────────
 export async function checkBadges(req, res) {
     try {
-        const metrics = await computeMetrics();
-        const existingBadges = await UserBadge.find({ userId: USER_ID });
+        const metrics = await computeMetrics(req.user.id);
+        const existingBadges = await UserBadge.find({ userId: req.user.id });
 
         // Build map of existing highest tier per category
         const existing = {};
@@ -109,7 +108,7 @@ export async function checkBadges(req, res) {
                     const badgeDef = BADGE_CATEGORIES[category].badges[t];
                     try {
                         await UserBadge.create({
-                            userId: USER_ID,
+                            userId: req.user.id,
                             category,
                             tier: t,
                             badgeName: badgeDef.name,
@@ -142,7 +141,7 @@ export async function checkBadges(req, res) {
 // ─── Get all user badges ─────────────────────────────────────────────
 export async function getUserBadges(req, res) {
     try {
-        const badges = await UserBadge.find({ userId: USER_ID }).sort({ category: 1, tier: 1 });
+        const badges = await UserBadge.find({ userId: req.user.id }).sort({ category: 1, tier: 1 });
         res.json(badges);
     } catch (err) {
         res.status(500).json({ error: "Failed to fetch badges" });
@@ -152,8 +151,8 @@ export async function getUserBadges(req, res) {
 // ─── Get progress toward next badge in each category ─────────────────
 export async function getBadgeProgress(req, res) {
     try {
-        const metrics = await computeMetrics();
-        const existingBadges = await UserBadge.find({ userId: USER_ID });
+        const metrics = await computeMetrics(req.user.id);
+        const existingBadges = await UserBadge.find({ userId: req.user.id });
 
         const existing = {};
         for (const b of existingBadges) {

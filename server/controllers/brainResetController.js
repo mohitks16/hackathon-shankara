@@ -10,7 +10,6 @@ const endpoint = "https://models.github.ai/inference";
 const model = "openai/gpt-4o-mini";
 const client = ModelClient(endpoint, new AzureKeyCredential(token));
 
-const USER_ID = "guest";
 const REVISION_INTERVALS = [1, 5, 14, 30]; // days
 
 // ─── 1) Log a studied topic ──────────────────────────────────────────
@@ -20,14 +19,14 @@ export async function logStudy(req, res) {
         if (!topic?.trim()) return res.status(400).json({ error: "topic required" });
 
         const log = await StudyLog.create({
-            userId: USER_ID,
+            userId: req.user.id,
             topic: topic.trim(),
             source: source || "quiz",
         });
 
         // Generate revision notifications for 1, 5, 14, 30 days
         const notifications = REVISION_INTERVALS.map((days) => ({
-            userId: USER_ID,
+            userId: req.user.id,
             studyLogId: log._id,
             topic: log.topic,
             source: log.source,
@@ -50,7 +49,7 @@ export async function getNotifications(req, res) {
     try {
         const now = new Date();
         const notifications = await RevisionNotification.find({
-            userId: USER_ID,
+            userId: req.user.id,
             dismissed: false,
             dueDate: { $lte: now },
         })
@@ -107,7 +106,7 @@ function classifyMistake(q, challengeDifficulty) {
 
 export async function getMistakeBuckets(req, res) {
     try {
-        const challenges = await ChallengeModel.find({ userId: USER_ID })
+        const challenges = await ChallengeModel.find({ userId: req.user.id })
             .sort({ createdAt: -1 })
             .limit(50);
 
@@ -149,7 +148,7 @@ export async function getMistakeBuckets(req, res) {
 // ─── 5) Get weak subtopics ───────────────────────────────────────────
 export async function getWeakSubtopics(req, res) {
     try {
-        const weak = await WeakSubtopic.find({ userId: USER_ID })
+        const weak = await WeakSubtopic.find({ userId: req.user.id })
             .sort({ count: -1, lastSeenAt: -1 })
             .limit(30);
         res.json(weak);
