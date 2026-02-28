@@ -24,6 +24,7 @@ import {
   FaUser,
   FaBell,
   FaTimes,
+  FaTrophy,
 } from "react-icons/fa";
 import axios from "axios";
 import { fetchStats, addXpToServer, addCoinsToServer } from "./statsUtils";
@@ -225,10 +226,21 @@ export default function App() {
                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                className="absolute top-full left-0 mt-2 w-72 bg-[#1e293b]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-2xl z-50"
+                className="absolute top-full left-0 mt-2 w-72 bg-[#1e293b]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-2xl z-50 overflow-hidden"
               >
-                <div className="text-center mb-4">
-                  <div className={`inline-flex bg-gradient-to-tr ${bracketGradient()} p-4 rounded-full shadow-lg mb-3`}>
+                {/* Dynamically Styled Profile Banner */}
+                {levelInfo.level >= 30 ? (
+                  <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-tr from-yellow-400 via-red-500 to-pink-500 opacity-40 mix-blend-screen z-0 animate-pulse"></div>
+                ) : levelInfo.level >= 20 ? (
+                  <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 opacity-30 animate-pulse z-0"></div>
+                ) : levelInfo.level >= 10 ? (
+                  <div className="absolute top-0 left-0 w-full h-24 bg-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.3)] z-0"></div>
+                ) : (
+                  <div className="absolute top-0 left-0 w-full h-24 bg-slate-700/30 z-0"></div>
+                )}
+
+                <div className="relative z-10 text-center mb-4 mt-2">
+                  <div className={`inline-flex bg-gradient-to-tr ${bracketGradient()} p-4 rounded-full shadow-lg mb-3 ring-4 ring-black/20`}>
                     <FaUser className="text-white text-2xl" />
                   </div>
                   <h3 className="text-lg font-bold">{levelInfo.bracketIcon} Level {levelInfo.level}</h3>
@@ -323,6 +335,15 @@ export default function App() {
             )
           }
         </button >
+
+        {/* Leaderboard Button */}
+        <button
+          onClick={() => navigate("/Leaderboard")}
+          className="relative flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 rounded-full px-4 py-2 hover:bg-purple-500/20 transition-all text-purple-400 font-semibold text-sm mx-1 md:mx-2"
+        >
+          <FaTrophy className="text-lg" />
+          <span className="hidden sm:inline">Leaderboard</span>
+        </button>
 
         {/* Badges Button */}
         < button

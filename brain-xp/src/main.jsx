@@ -15,6 +15,7 @@ import Storyverse from './LearningArena/Storyverse.jsx';
 import BrainBoard from './LearningArena/BrainBoard.jsx';
 import BrainReset from './BrainReset/BrainReset.jsx';
 import Badges from './Badges/Badges.jsx';
+import Leaderboard from './Leaderboard/Leaderboard.jsx';
 
 import Login from './Login.jsx';
 import Signup from './Signup.jsx';
@@ -43,6 +44,7 @@ createRoot(document.getElementById('root')).render(
           <Route path='/BrainBoard' element={<BrainBoard onBack={() => window.history.back()} />} />
           <Route path='/BrainReset' element={<BrainReset />} />
           <Route path='/Badges' element={<Badges />} />
+          <Route path='/Leaderboard' element={<Leaderboard />} />
         </Route>
       </Routes>
     </AuthProvider>
